@@ -1,23 +1,65 @@
-enum GRAMMAR {
-    BEGIN_ARRAY = '[',
-    BEGIN_OBJECT = '{',
-    END_ARRAY = ']',
-    END_OBJECT = '}',
-    NAME_SEPARATOR = ':',
-    VALUE_SEPARATOR = ',',
-    LITERAL_TRUE,
-    LITERAL_FALSE,
-    LITERAL_NULL,
-    WHITE_SPACE,
-};
+#include <stdio.h>
+#include <stdlib.h>
+#include "lexer.h"
 
-static char is_whitespace(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
-}
+#define MAX_TOKENS 500
+typedef enum {
+  BEGIN_ARRAY = '[',
+  BEGIN_OBJECT = '{',
+  END_ARRAY = ']',
+  END_OBJECT = '}',
+  NAME_SEPARATOR = ':',
+  VALUE_SEPARATOR = ',',
+  LITERAL_TRUE,
+  LITERAL_FALSE,
+  LITERAL_NULL,
+  WHITE_SPACE,
+} GRAMMAR;
 
-/**
- * A JSON value must be an Object, an Array, Number, String, 'true', 'false', or 'null' 
- */
-static char parse_value() {
+TokenStream *tokenize(FILE *file) {
+  GRAMMAR *tl = (GRAMMAR *)calloc(MAX_TOKENS, sizeof(GRAMMAR));
+  if (!tl) {
+    printf("tokenize.error.failed.to.calloc\n");
+    return NULL;
+  }
 
+  int i = 0;
+  int capacity = MAX_TOKENS;
+  int c;
+  while ((c = fgetc(file)) != EOF) {
+    if (i == capacity) {
+      capacity *= 1.5;
+      GRAMMAR *temp = (GRAMMAR *)realloc(tl, MAX_TOKENS * sizeof(GRAMMAR));
+      if (!temp) {
+        printf("tokenize.error.failed.to.realloc\n");
+        return NULL;
+      }
+      tl = temp;
+    }
+    switch (c) {
+      case BEGIN_OBJECT:
+        tl[i] = BEGIN_OBJECT;
+        break;
+      case END_OBJECT:
+        tl[i] = END_OBJECT;
+        break;
+      case ' ':
+      case '\t':
+      case '\n':
+      case '\r':
+        tl[i] = WHITE_SPACE;
+        break;
+      default:
+        break;
+    }
+    i++;
+  }
+  TokenStream *ts = (TokenStream *)malloc(i * sizeof(TokenStream));
+  if (!ts) {
+    printf("tokenize.error.failed.to.malloc\n");
+    return NULL;
+  }
+  ts->size = i;
+  ts->tokenList = tl;
+  return ts;
 }
