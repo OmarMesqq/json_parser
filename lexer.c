@@ -63,3 +63,11 @@ TokenStream *tokenize(FILE *file) {
   ts->tokenList = tl;
   return ts;
 }
+
+void free_token_stream(TokenStream* ts) {
+  if (!ts) {
+    return;
+  }
+  free(ts->tokenList);
+  free(ts);
+}
