@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "parser.h"
+#include "grammar.h"
 
 static int delegate_parser(TokenStream* ts);
 static int parse_object(TokenStream* ts);
