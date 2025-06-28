@@ -35,6 +35,20 @@ TokenStream *tokenize(FILE *file) {
       case END_OBJECT:
         tokenList[i] = END_OBJECT;
         break;
+      case STRING_START_END:
+        tokenList[i] = STRING_START_END;
+        break;
+      case 't':
+        // attempt to lexify 'true' into a token
+        if ((c = fgetc(file)) == 'r' &&
+          (c = fgetc(file)) == 'u' &&
+          (c = fgetc(file)) == 'e') {
+          tokenList[i] = LITERAL_TRUE;
+        } else {
+          fprintf(stderr, "tokenize: malformed 'true' literal.\n");
+          return NULL;
+        }
+        break;
       case ' ':
       case '\t':
       case '\n':

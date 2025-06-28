@@ -8,6 +8,7 @@ typedef enum {
   END_OBJECT = '}',
   NAME_SEPARATOR = ':',
   VALUE_SEPARATOR = ',',
+  STRING_START_END = '"',
   LITERAL_TRUE,
   LITERAL_FALSE,
   LITERAL_NULL,
