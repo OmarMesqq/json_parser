@@ -27,7 +27,7 @@ int ParseJson(TokenStream* ts) {
 
     int pos, currentParseStatus;
     for (pos = 0; pos < ts->size; pos++) {
-       GRAMMAR currentToken =  ts->tokenList[pos];
+       TOKEN currentToken =  ts->tokenList[pos];
        switch (currentToken) {
         case BEGIN_OBJECT:
             currentParseStatus = parseObject(ts, &pos);

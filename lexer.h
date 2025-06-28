@@ -3,7 +3,7 @@
 #include "grammar.h"
 
 typedef struct tokenStream {
-  GRAMMAR *tokenList;
+  TOKEN *tokenList;
   int size;
 } TokenStream;
 

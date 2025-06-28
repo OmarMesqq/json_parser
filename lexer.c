@@ -8,7 +8,7 @@
 static void print_token_stream(TokenStream* ts);
 
 TokenStream *tokenize(FILE *file) {
-  GRAMMAR* tokenList = (GRAMMAR*) calloc(MAX_TOKENS, sizeof(GRAMMAR));
+  TOKEN* tokenList = (TOKEN*) calloc(MAX_TOKENS, sizeof(TOKEN));
   if (!tokenList) {
     fprintf(stderr, "tokenize: calloc failed!\n");
     return NULL;
@@ -20,7 +20,7 @@ TokenStream *tokenize(FILE *file) {
   while ((c = fgetc(file)) != EOF) {
     if (i == capacity) {
       capacity *= 1.5;
-      GRAMMAR *temp = (GRAMMAR *) realloc(tokenList, MAX_TOKENS * sizeof(GRAMMAR));
+      TOKEN *temp = (TOKEN *) realloc(tokenList, MAX_TOKENS * sizeof(TOKEN));
       if (!temp) {
         fprintf(stderr, "tokenize: realloc failed!\n");
         return NULL;
