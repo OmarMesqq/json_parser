@@ -1,8 +1,8 @@
 release:
-	gcc -O3 -Wall -Wextra  main.c lexer.c parser.c -o json_parser
+	gcc -O3 -Wall -Wextra  json_parser.c lexer.c parser.c -o json_parser
 
 debug:
-	gcc -g -O0 -Wall -Wextra main.c lexer.c parser.c -o json_parser
+	gcc -g -O0 -Wall -Wextra json_parser.c lexer.c parser.c -o json_parser
 
 test:
 	gcc -O3 -Wall -Wextra  run_tests.c lexer.c parser.c -o json_parser_tests
