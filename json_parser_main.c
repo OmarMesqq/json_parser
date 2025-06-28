@@ -19,10 +19,10 @@ int main(int argc, char** argv) {
 
     int res = ValidateJson(fp);
 
-    if (res == 1) {
+    if (res == 0) {
         printf(GREEN "%s is valid JSON.\n" RESET_COLOR, jsonFilePath);
     }
-    else if (res == 0) {
+    else if (res == -1) {
         printf(RED "%s is NOT valid JSON.\n" RESET_COLOR, jsonFilePath);
     }
     else {

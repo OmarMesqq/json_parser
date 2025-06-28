@@ -7,8 +7,8 @@
 static void run_test(const char* testName, const char* jsonFilePath, int expectedResult);
 
 int main() {
-    run_test("Step 1, valid JSON", "tests/step1/valid.json", 1);
-    run_test("Step 1, invalid JSON", "tests/step1/invalid.json", 0);
+    run_test("Step 1, valid JSON", "tests/step1/valid.json", 0);
+    run_test("Step 1, invalid JSON", "tests/step1/invalid.json", -1);
     return 0;
 }
 
