@@ -12,6 +12,6 @@ int ValidateJson(FILE* jsonFilePtr) {
         return -1;
     }
 
-    int res = parseJson(ts);
+    int res = ParseJson(ts);
     return res;
 }

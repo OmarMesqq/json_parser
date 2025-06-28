@@ -3,55 +3,65 @@
 #include "parser.h"
 #include "grammar.h"
 
-static int delegate_parser(TokenStream* ts, int* pos);
-static int parse_object(TokenStream* ts, int* pos);
+static int parseObject(TokenStream* ts, int* pos);
 
-int parseJson(TokenStream* ts) {
+
+/**
+ * @returns 0 if JSON is valid, -1 otherwise
+ */
+int ParseJson(TokenStream* ts) {
     if (!ts || !ts->tokenList) {
         fprintf(stderr, "parseJson: empty token stream or token list.refusing to parse.\n");
         return -1;
     }
 
-    int pos, parseStatus;
-    for (pos = 0; pos < ts->size; pos++) {
-        parseStatus = delegate_parser(ts, &pos);
+    /**
+     *  Empty file is not valid JSON
+     * A JSON value MUST be an object, array, number, or string, or one of
+     * the following three literal names:
+     * 'false', 'true', 'null'
+     */
+    if (ts->size == 0) {
+        return -1;
+    }
 
-        if (parseStatus == -1) {
-            return -1;
-        }
+    int pos, currentParseStatus;
+    for (pos = 0; pos < ts->size; pos++) {
+       GRAMMAR currentToken =  ts->tokenList[pos];
+       switch (currentToken) {
+        case BEGIN_OBJECT:
+            currentParseStatus = parseObject(ts, &pos);
+            if (!currentParseStatus) {
+                return currentParseStatus;
+            }
+            break;
+        default:
+            fprintf(stderr, "parseJson: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
+            break;
+       }
     }
 
     free_token_stream(ts);
     return 0;
 }
 
-static int delegate_parser(TokenStream* ts, int* pos) {
-    GRAMMAR token = ts->tokenList[*pos];
-    switch (token) {
-        case BEGIN_OBJECT:
-            return parse_object(ts, pos);
-            break;
-        default:
-            fprintf(stderr, "delegate_parser: Unexpected token: %c (char), %d (decimal)\n", token, token);
-            break;
-    }
-    return -1;
-}
+/**
+ * object = begin-object [ member *( value-separator member ) ] end-object
+ * 
+ * member = string name-separator value
+ */
+static int parseObject(TokenStream* ts, int* pos) {
+    (*pos)++;   // parse current BEGIN_OBJECT
 
-static int parse_object(TokenStream* ts, int* pos) {
-    if (!ts || !ts->tokenList) {
-        printf("parse_object: empty token stream or token list.refusing to parse.\n");
-        return -1;
-    }
-
-    while (*pos < ts->size) {
-        GRAMMAR token = ts->tokenList[*pos];
-        if (token == END_OBJECT) {
-            return 1;
-        }
+    int foundEnd = 0;
+    while (ts->tokenList[*pos] != END_OBJECT) {
         (*pos)++;
-        delegate_parser(ts, pos);
+        if (ts->tokenList[*pos] == END_OBJECT) {
+            foundEnd = 1;
+            break;
+        }
     }
-    printf("parse_object failed. expected END_OBJECT");
+
+    if (foundEnd) return 0;
     return -1;
 }
