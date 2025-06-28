@@ -1,13 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "lexer.h"
+#include "build_config.h"
 
 #define MAX_TOKENS 500
 
+static void print_token_stream(TokenStream* ts);
+
 TokenStream *tokenize(FILE *file) {
-  GRAMMAR *tl = (GRAMMAR *)calloc(MAX_TOKENS, sizeof(GRAMMAR));
-  if (!tl) {
-    printf("tokenize.error.failed.to.calloc\n");
+  GRAMMAR* tokenList = (GRAMMAR*) calloc(MAX_TOKENS, sizeof(GRAMMAR));
+  if (!tokenList) {
+    fprintf(stderr, "tokenize: calloc failed!\n");
     return NULL;
   }
 
@@ -17,38 +20,46 @@ TokenStream *tokenize(FILE *file) {
   while ((c = fgetc(file)) != EOF) {
     if (i == capacity) {
       capacity *= 1.5;
-      GRAMMAR *temp = (GRAMMAR *)realloc(tl, MAX_TOKENS * sizeof(GRAMMAR));
+      GRAMMAR *temp = (GRAMMAR *) realloc(tokenList, MAX_TOKENS * sizeof(GRAMMAR));
       if (!temp) {
-        printf("tokenize.error.failed.to.realloc\n");
+        fprintf(stderr, "tokenize: realloc failed!\n");
         return NULL;
       }
-      tl = temp;
+      tokenList = temp;
     }
+
     switch (c) {
       case BEGIN_OBJECT:
-        tl[i] = BEGIN_OBJECT;
+        tokenList[i] = BEGIN_OBJECT;
         break;
       case END_OBJECT:
-        tl[i] = END_OBJECT;
+        tokenList[i] = END_OBJECT;
         break;
       case ' ':
       case '\t':
       case '\n':
       case '\r':
-        tl[i] = WHITE_SPACE;
+        tokenList[i] = WHITE_SPACE;
         break;
       default:
+        fprintf(stderr, "tokenize: unknown token: %c (char), %d (decimal)\n", c, c);
         break;
     }
     i++;
   }
-  TokenStream *ts = (TokenStream *)malloc(i * sizeof(TokenStream));
+  TokenStream *ts = (TokenStream *) malloc(i * sizeof(TokenStream));
   if (!ts) {
-    printf("tokenize.error.failed.to.malloc\n");
+    fprintf(stderr, "tokenize: malloc failed!\n");
     return NULL;
   }
+
   ts->size = i;
-  ts->tokenList = tl;
+  ts->tokenList = tokenList;
+
+  #ifdef DEBUG
+  print_token_stream(ts);
+  #endif
+
   return ts;
 }
 
@@ -58,4 +69,20 @@ void free_token_stream(TokenStream* ts) {
   }
   free(ts->tokenList);
   free(ts);
+}
+
+static void print_token_stream(TokenStream* ts) {
+  if (!ts || !ts->tokenList) {
+    return;
+  }
+
+  printf("---- START TOKEN STREAM ----\n");
+  printf("Stream has %d tokens.\n", ts->size);
+  
+  for (int i = 0; i < ts->size; i++) {
+    printf("TOKEN: %c\n", ts->tokenList[i]);
+  }
+
+
+  printf("---- END TOKEN STREAM ----\n");
 }
