@@ -3,9 +3,5 @@
         "editor.defaultFormatter": "ms-vscode.cpptools"
     },
     "C_Cpp.clang_format_style": "Google",
-    "files.associations": {
-        "stdio.h": "c",
-        "parser.h": "c"
-    },
     "makefile.configureOnOpen": true
 }
