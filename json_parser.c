@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "lexer.h"
 #include "parser.h"
+#include "json_parser.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -8,4 +9,9 @@ int main(int argc, char** argv) {
         return -1;
     }
     return 0;
+}
+
+
+int ValidateJson(FILE* jsonFilePtr) {
+
 }
