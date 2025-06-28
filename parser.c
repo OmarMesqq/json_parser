@@ -36,7 +36,7 @@ int ParseJson(TokenStream* ts) {
             }
             break;
         default:
-            fprintf(stderr, "parseJson: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
+            fprintf(stderr, "ParseJson: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
             break;
        }
     }
@@ -54,11 +54,19 @@ static int parseObject(TokenStream* ts, int* pos) {
     (*pos)++;   // parse current BEGIN_OBJECT
 
     int foundEnd = 0;
-    while (ts->tokenList[*pos] != END_OBJECT) {
+    TOKEN currentToken = ts->tokenList[*pos];
+    while (currentToken != END_OBJECT && !foundEnd) {
+        currentToken = ts->tokenList[*pos];
         (*pos)++;
-        if (ts->tokenList[*pos] == END_OBJECT) {
-            foundEnd = 1;
-            break;
+        
+        switch (currentToken) {
+            case END_OBJECT:
+                foundEnd = 1;
+                break;
+            
+            default:
+                fprintf(stderr, "parseObject: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
+                break;
         }
     }
 
