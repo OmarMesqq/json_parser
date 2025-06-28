@@ -2,7 +2,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "json_parser.h"
-#include "color_codes.h"
+#include "build_config.h"
 
 
 int ValidateJson(FILE* jsonFilePtr) {

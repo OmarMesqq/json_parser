@@ -2,7 +2,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "json_parser.h"
-#include "color_codes.h"
+#include "build_config.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
