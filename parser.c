@@ -3,21 +3,20 @@
 #include "parser.h"
 #include "grammar.h"
 
-static int delegate_parser(TokenStream* ts);
-static int parse_object(TokenStream* ts);
-
-static int POSITION;
+static int delegate_parser(TokenStream* ts, int* pos);
+static int parse_object(TokenStream* ts, int* pos);
 
 int parseJson(TokenStream* ts) {
     if (!ts || !ts->tokenList) {
-        printf("parseJson: empty token stream or token list.refusing to parse.\n");
+        fprintf(stderr, "parseJson: empty token stream or token list.refusing to parse.\n");
         return -1;
     }
 
-    int ret;
-    for (POSITION = 0; POSITION < ts->size; POSITION++) {
-        ret = delegate_parser(ts);
-        if (ret == -1) {
+    int pos, parseStatus;
+    for (pos = 0; pos < ts->size; pos++) {
+        parseStatus = delegate_parser(ts, &pos);
+
+        if (parseStatus == -1) {
             return -1;
         }
     }
@@ -26,30 +25,32 @@ int parseJson(TokenStream* ts) {
     return 0;
 }
 
-static int delegate_parser(TokenStream* ts) {
-    GRAMMAR token = ts->tokenList[POSITION];
+static int delegate_parser(TokenStream* ts, int* pos) {
+    GRAMMAR token = ts->tokenList[*pos];
     switch (token) {
         case BEGIN_OBJECT:
-            return parse_object(ts);
+            return parse_object(ts, pos);
             break;
         default:
-            printf("unexpected token: %c\n", token);
+            fprintf(stderr, "delegate_parser: Unexpected token: %c (char), %d (decimal)\n", token, token);
             break;
     }
     return -1;
 }
-static int parse_object(TokenStream* ts) {
+
+static int parse_object(TokenStream* ts, int* pos) {
     if (!ts || !ts->tokenList) {
         printf("parse_object: empty token stream or token list.refusing to parse.\n");
         return -1;
     }
-    while (POSITION < ts->size) {
-        GRAMMAR token = ts->tokenList[POSITION];
+
+    while (*pos < ts->size) {
+        GRAMMAR token = ts->tokenList[*pos];
         if (token == END_OBJECT) {
             return 1;
         }
-        POSITION++;
-        delegate_parser(ts);
+        (*pos)++;
+        delegate_parser(ts, pos);
     }
     printf("parse_object failed. expected END_OBJECT");
     return -1;
