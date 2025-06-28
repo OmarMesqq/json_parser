@@ -1,1 +1,3 @@
-zon
+json_parser
+json_parser_tests
+*.dSYM

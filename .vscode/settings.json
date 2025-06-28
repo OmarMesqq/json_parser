@@ -6,5 +6,6 @@
     "files.associations": {
         "stdio.h": "c",
         "parser.h": "c"
-    }
+    },
+    "makefile.configureOnOpen": true
 }
