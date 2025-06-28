@@ -13,15 +13,16 @@ int parseJson(TokenStream* ts) {
         printf("parseJson: empty token stream or token list.refusing to parse.\n");
         return -1;
     }
+
     int ret;
     for (POSITION = 0; POSITION < ts->size; POSITION++) {
         ret = delegate_parser(ts);
         if (ret == -1) {
-            printf("parseJson: invalid JSON.\n");
             return -1;
         }
     }
-    printf("parseJson: valid JSON.\n");
+
+    free_token_stream(ts);
     return 0;
 }
 
