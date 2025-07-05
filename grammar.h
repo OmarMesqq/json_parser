@@ -12,7 +12,6 @@ typedef enum {
   LITERAL_TRUE,
   LITERAL_FALSE,
   LITERAL_NULL,
-  WHITE_SPACE,
 } TOKEN;
 
 #endif

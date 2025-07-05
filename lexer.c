@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include "lexer.h"
 #include "build_config.h"
 
@@ -17,6 +18,7 @@ TokenStream *tokenize(FILE *file) {
   int i = 0;
   int capacity = MAX_TOKENS;
   int c;
+  int parsingString = 0;
   while ((c = fgetc(file)) != EOF) {
     if (i == capacity) {
       capacity *= 1.5;
@@ -28,6 +30,60 @@ TokenStream *tokenize(FILE *file) {
       tokenList = temp;
     }
 
+    // Ignore whitespace
+    if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+      continue;
+    }
+    if (isalpha(c)) {
+      if (parsingString) {
+        // pretty much anything is allowed inside a quoted string, so just go on with the flow
+        continue;
+      };
+      switch (c) {
+        case 't': {
+          // attempt to lexify 'true' into a token
+          if ((c = fgetc(file)) == 'r' &&
+            (c = fgetc(file)) == 'u' &&
+            (c = fgetc(file)) == 'e') {
+            tokenList[i] = LITERAL_TRUE;
+          } else {
+            fprintf(stderr, "tokenize: malformed 'true' literal.\n");
+            return NULL;
+          }
+          break;
+        }
+        case 'f': {
+          // attempt to lexify 'false' into a token
+          if ((c = fgetc(file)) == 'a' &&
+            (c = fgetc(file)) == 'l' &&
+            (c = fgetc(file)) == 's' &&
+          (c = fgetc(file)) == 'e') {
+            tokenList[i] = LITERAL_FALSE;
+          } else {
+            fprintf(stderr, "tokenize: malformed 'false' literal.\n");
+            return NULL;
+          }
+          break;
+        }
+        case 'n': {
+          // attempt to lexify 'null' into a token
+          if ((c = fgetc(file)) == 'u' &&
+            (c = fgetc(file)) == 'l' &&
+            (c = fgetc(file)) == 'l') {
+            tokenList[i] = LITERAL_NULL;
+          } else {
+            fprintf(stderr, "tokenize: malformed 'null' literal.\n");
+            return NULL;
+          }
+          break;
+        }
+        default: {
+          fprintf(stderr, "tokenize: unexpected alphanumeric token: %c (char), %d (dec)\n", c, c);
+          break;
+        }
+      }
+    }
+
     switch (c) {
       case BEGIN_OBJECT:
         tokenList[i] = BEGIN_OBJECT;
@@ -37,23 +93,14 @@ TokenStream *tokenize(FILE *file) {
         break;
       case STRING_START_END:
         tokenList[i] = STRING_START_END;
-        break;
-      case 't':
-        // attempt to lexify 'true' into a token
-        if ((c = fgetc(file)) == 'r' &&
-          (c = fgetc(file)) == 'u' &&
-          (c = fgetc(file)) == 'e') {
-          tokenList[i] = LITERAL_TRUE;
+        if (!parsingString) {
+          parsingString = 1;
         } else {
-          fprintf(stderr, "tokenize: malformed 'true' literal.\n");
-          return NULL;
+          parsingString = 0;
         }
         break;
-      case ' ':
-      case '\t':
-      case '\n':
-      case '\r':
-        tokenList[i] = WHITE_SPACE;
+      case ':':
+        tokenList[i] = NAME_SEPARATOR;
         break;
       default:
         fprintf(stderr, "tokenize: unknown token: %c (char), %d (decimal)\n", c, c);
