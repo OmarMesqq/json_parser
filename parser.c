@@ -31,7 +31,7 @@ int ParseJson(TokenStream* ts) {
        switch (currentToken) {
         case BEGIN_OBJECT:
             currentParseStatus = parseObject(ts, &pos);
-            if (!currentParseStatus) {
+            if (currentParseStatus == -1) {
                 return currentParseStatus;
             }
             break;
@@ -66,7 +66,7 @@ static int parseObject(TokenStream* ts, int* pos) {
             
             default:
                 fprintf(stderr, "parseObject: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
-                break;
+                return -1;
         }
     }
 
