@@ -53,23 +53,27 @@ int ParseJson(TokenStream* ts) {
 static int parseObject(TokenStream* ts, int* pos) {
     (*pos)++;   // parse current BEGIN_OBJECT
 
-    int foundEnd = 0;
+    int foundObjectEnd = 0;
     TOKEN currentToken = ts->tokenList[*pos];
-    while (currentToken != END_OBJECT && !foundEnd) {
+    do {
         currentToken = ts->tokenList[*pos];
         (*pos)++;
         
         switch (currentToken) {
             case END_OBJECT:
-                foundEnd = 1;
+                foundObjectEnd = 1;
                 break;
-            
             default:
                 fprintf(stderr, "parseObject: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
                 return -1;
         }
     }
+    while (currentToken != END_OBJECT && !foundObjectEnd);
 
-    if (foundEnd) return 0;
+    if (foundObjectEnd) {
+        return 0;
+    };
+
+    fprintf(stderr, "Expected a } for closing object.");
     return -1;
 }
