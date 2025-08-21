@@ -5,7 +5,7 @@ debug:
 	gcc -g -O0 -Wall -Wextra json_parser_main.c json_parser.c lexer.c parser.c -o json_parser
 
 test:
-	gcc -O3 -Wall -Wextra  run_tests.c json_parser.c lexer.c parser.c -o json_parser_tests
+	gcc -g -Wall -Wextra  run_tests.c json_parser.c lexer.c parser.c -o json_parser_tests
 
 all: test debug
 
