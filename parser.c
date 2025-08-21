@@ -4,14 +4,10 @@
 #include "grammar.h"
 
 static int parseObject(TokenStream* ts, int* pos);
+static int parseArray(TokenStream* ts, int* pos);
+static int parseNumber(TokenStream* ts, int* pos);
 static int parseString(TokenStream* ts, int* pos);
-
-
-
-/**
- * A JSON value MUST be an object, array, number, or string, or one of
- * the following three literal names:
- */
+static int parseLiteral(TokenStream* ts, int* pos);
 
 
 /**
@@ -24,7 +20,7 @@ int ParseJson(TokenStream* ts) {
     }
 
     /**
-     *  Empty file is not valid JSON
+     *  Empty file is not valid JSON. From RFC:
      * A JSON value MUST be an object, array, number, or string, or one of
      * the following three literal names:
      * 'false', 'true', 'null'
