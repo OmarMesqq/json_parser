@@ -21,7 +21,7 @@ int ParseJson(TokenStream* ts) {
     }
 
     /**
-     * Empty file is not valid JSON. From RFC:
+     * Empty file is not valid JSON as per the RFC
      * A JSON value MUST be an object, array, number, or string, or one of
      * the following three literal names:
      * 'false', 'true', 'null'
@@ -30,7 +30,7 @@ int ParseJson(TokenStream* ts) {
         return -1;
     }
 
-    printf("start parsing: parseJson\n");
+    
     int pos, currentParseStatus;
     for (pos = 0; pos < ts->size; pos++) {
        TOKEN currentToken =  ts->tokenList[pos];
@@ -64,7 +64,6 @@ int ParseJson(TokenStream* ts) {
  */
 static int parseObject(TokenStream* ts, int* pos) {
     (*pos)++;   // parse current BEGIN_OBJECT
-    printf("parseObject\n");
 
     int foundObjectEnd = 0;
     int parseStatus = 0;
@@ -109,7 +108,6 @@ static int parseObject(TokenStream* ts, int* pos) {
 
 static int parseString(TokenStream* ts, int* pos) {
     (*pos)++;   // parse current STRING_START_END
-    printf("parseString\n");
 
     int foundMatchingEndDoubleQuote = 0;
     TOKEN currentToken = ts->tokenList[*pos];
