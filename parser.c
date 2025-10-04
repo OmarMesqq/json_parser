@@ -8,6 +8,7 @@ static int parseArray(TokenStream* ts, int* pos);
 static int parseNumber(TokenStream* ts, int* pos);
 static int parseString(TokenStream* ts, int* pos);
 static int parseLiteral(TokenStream* ts, int* pos);
+static int expectNameSeparator(TokenStream* ts, int* pos);
 
 
 /**
@@ -20,7 +21,7 @@ int ParseJson(TokenStream* ts) {
     }
 
     /**
-     *  Empty file is not valid JSON. From RFC:
+     * Empty file is not valid JSON. From RFC:
      * A JSON value MUST be an object, array, number, or string, or one of
      * the following three literal names:
      * 'false', 'true', 'null'
@@ -29,6 +30,7 @@ int ParseJson(TokenStream* ts) {
         return -1;
     }
 
+    printf("start parsing: parseJson\n");
     int pos, currentParseStatus;
     for (pos = 0; pos < ts->size; pos++) {
        TOKEN currentToken =  ts->tokenList[pos];
@@ -62,6 +64,7 @@ int ParseJson(TokenStream* ts) {
  */
 static int parseObject(TokenStream* ts, int* pos) {
     (*pos)++;   // parse current BEGIN_OBJECT
+    printf("parseObject\n");
 
     int foundObjectEnd = 0;
     int parseStatus = 0;
@@ -80,7 +83,16 @@ static int parseObject(TokenStream* ts, int* pos) {
                     return parseStatus;
                 }
                 break;
+            case NAME_SEPARATOR:
+                (*pos)++; // consume current :
+                parseString(ts, pos);
+                int hasNameSeparator = expectNameSeparator(ts, pos);
+                if (hasNameSeparator != 0) {
+                    return hasNameSeparator;
+                }
+                break;
             default:
+                //ParseJson(ts);
                 fprintf(stderr, "parseObject: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
                 return -1;
         }
@@ -97,6 +109,7 @@ static int parseObject(TokenStream* ts, int* pos) {
 
 static int parseString(TokenStream* ts, int* pos) {
     (*pos)++;   // parse current STRING_START_END
+    printf("parseString\n");
 
     int foundMatchingEndDoubleQuote = 0;
     TOKEN currentToken = ts->tokenList[*pos];
@@ -109,9 +122,6 @@ static int parseString(TokenStream* ts, int* pos) {
                 foundMatchingEndDoubleQuote = 1;
                 (*pos)++;   // mark current double quote as parsed
                 break;
-            default:
-                fprintf(stderr, "parseString: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
-                return -1;
         }
     }
     while (currentToken != STRING_START_END && !foundMatchingEndDoubleQuote);
@@ -121,5 +131,13 @@ static int parseString(TokenStream* ts, int* pos) {
     };
 
     fprintf(stderr, "Expected closing \" for closing string.");
+    return -1;
+}
+
+static int expectNameSeparator(TokenStream* ts, int* pos) {
+    if (*pos == NAME_SEPARATOR) {
+        (*pos)++;
+        return 0;
+    }
     return -1;
 }
