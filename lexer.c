@@ -1,15 +1,17 @@
+#include "lexer.h"
+
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include "lexer.h"
+
 #include "build_config.h"
 
 #define MAX_TOKENS 500
 
 static void print_token_stream(TokenStream* ts);
 
-TokenStream *tokenize(FILE *file) {
-  TOKEN* tokenList = (TOKEN*) calloc(MAX_TOKENS, sizeof(TOKEN));
+TokenStream* tokenize(FILE* file) {
+  TOKEN* tokenList = (TOKEN*)calloc(MAX_TOKENS, sizeof(TOKEN));
   if (!tokenList) {
     fprintf(stderr, "tokenize: calloc failed!\n");
     return NULL;
@@ -22,7 +24,7 @@ TokenStream *tokenize(FILE *file) {
   while ((c = fgetc(file)) != EOF) {
     if (i == capacity) {
       capacity *= 1.5;
-      TOKEN *temp = (TOKEN *) realloc(tokenList, MAX_TOKENS * sizeof(TOKEN));
+      TOKEN* temp = (TOKEN*)realloc(tokenList, MAX_TOKENS * sizeof(TOKEN));
       if (!temp) {
         fprintf(stderr, "tokenize: realloc failed!\n");
         return NULL;
@@ -43,8 +45,8 @@ TokenStream *tokenize(FILE *file) {
         case 't': {
           // attempt to lexify 'true' into a token
           if ((c = fgetc(file)) == 'r' &&
-            (c = fgetc(file)) == 'u' &&
-            (c = fgetc(file)) == 'e') {
+              (c = fgetc(file)) == 'u' &&
+              (c = fgetc(file)) == 'e') {
             tokenList[i] = LITERAL_TRUE;
           } else {
             fprintf(stderr, "tokenize: malformed 'true' literal.\n");
@@ -55,9 +57,9 @@ TokenStream *tokenize(FILE *file) {
         case 'f': {
           // attempt to lexify 'false' into a token
           if ((c = fgetc(file)) == 'a' &&
-            (c = fgetc(file)) == 'l' &&
-            (c = fgetc(file)) == 's' &&
-          (c = fgetc(file)) == 'e') {
+              (c = fgetc(file)) == 'l' &&
+              (c = fgetc(file)) == 's' &&
+              (c = fgetc(file)) == 'e') {
             tokenList[i] = LITERAL_FALSE;
           } else {
             fprintf(stderr, "tokenize: malformed 'false' literal.\n");
@@ -68,8 +70,8 @@ TokenStream *tokenize(FILE *file) {
         case 'n': {
           // attempt to lexify 'null' into a token
           if ((c = fgetc(file)) == 'u' &&
-            (c = fgetc(file)) == 'l' &&
-            (c = fgetc(file)) == 'l') {
+              (c = fgetc(file)) == 'l' &&
+              (c = fgetc(file)) == 'l') {
             tokenList[i] = LITERAL_NULL;
           } else {
             fprintf(stderr, "tokenize: malformed 'null' literal.\n");
@@ -108,7 +110,7 @@ TokenStream *tokenize(FILE *file) {
     }
     i++;
   }
-  TokenStream *ts = (TokenStream *) malloc(i * sizeof(TokenStream));
+  TokenStream* ts = (TokenStream*)malloc(i * sizeof(TokenStream));
   if (!ts) {
     fprintf(stderr, "tokenize: malloc failed!\n");
     return NULL;
@@ -117,9 +119,9 @@ TokenStream *tokenize(FILE *file) {
   ts->size = i;
   ts->tokenList = tokenList;
 
-  #ifdef DEBUG
+#ifdef DEBUG
   print_token_stream(ts);
-  #endif
+#endif
 
   return ts;
 }
@@ -139,11 +141,10 @@ static void print_token_stream(TokenStream* ts) {
 
   printf("---- START TOKEN STREAM ----\n");
   printf("Stream has %d tokens.\n", ts->size);
-  
+
   for (int i = 0; i < ts->size; i++) {
     printf("TOKEN: %c\n", ts->tokenList[i]);
   }
-
 
   printf("---- END TOKEN STREAM ----\n");
 }
