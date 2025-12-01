@@ -11,6 +11,7 @@ int main(int argc, char** argv) {
     return -1;
   }
   const char* jsonFilePath = argv[1];
+  int isValidJson = 0;
 
   FILE* fp = fopen(jsonFilePath, "r");
   if (!fp) {
@@ -18,16 +19,17 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  int res = ValidateJson(fp);
+  isValidJson = ValidateJson(fp);
 
-  if (res == 0) {
+  if (isValidJson == 0) {
     printf(GREEN "%s is valid JSON.\n" RESET_COLOR, jsonFilePath);
-  } else if (res == -1) {
+  } else if (isValidJson == -1) {
     printf(RED "%s is NOT valid JSON.\n" RESET_COLOR, jsonFilePath);
   } else {
-    fprintf(stderr, RED "Unknown error. Parser returned status code %d\n" RESET_COLOR, res);
+    fprintf(stderr, RED "Unknown error. Parser returned status code %d\n" RESET_COLOR, isValidJson);
     return -1;
   }
 
+  fclose(fp);
   return 0;
 }
