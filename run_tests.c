@@ -5,7 +5,7 @@
 #include "lexer.h"
 #include "parser.h"
 
-static void run_test(const char* testName, const char* jsonFilePath, int expectedResult);
+static void run_test(const char* testName, const char* jsonFilePath, const int expected);
 
 int main() {
   run_test("Step 1, valid JSON", "tests/step1/valid.json", 0);
@@ -18,7 +18,7 @@ int main() {
   return 0;
 }
 
-static void run_test(const char* testName, const char* jsonFilePath, int expectedResult) {
+static void run_test(const char* testName, const char* jsonFilePath, const int expected) {
   printf("Running test %s on file %s\n...", testName, jsonFilePath);
 
   FILE* fp = fopen(jsonFilePath, "r");
@@ -27,12 +27,12 @@ static void run_test(const char* testName, const char* jsonFilePath, int expecte
     return;
   }
 
-  int actualResult = ValidateJson(fp);
+  int actual = ValidateJson(fp);
 
-  if (actualResult == expectedResult) {
+  if (actual == expected) {
     printf(GREEN "Test %s on file %s passed.\n" RESET_COLOR, testName, jsonFilePath);
   } else {
-    fprintf(stderr, RED "Test %s on file %s FAILED!\n" RESET_COLOR, testName, jsonFilePath);
+    fprintf(stderr, RED "Test %s on file %s FAILED. Expected %d, got %d!\n" RESET_COLOR, testName, jsonFilePath, expected, actual);
   }
 
   fclose(fp);
