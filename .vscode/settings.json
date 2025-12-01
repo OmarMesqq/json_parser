@@ -1,7 +1,9 @@
 {
-    "[cpp]": {
-        "editor.defaultFormatter": "ms-vscode.cpptools"
+    "files.associations": {
+        ".gdbinit": "plaintext"
     },
-    "C_Cpp.clang_format_style": "Google",
-    "makefile.configureOnOpen": true
+    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, ColumnLimit: 0 }",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false
 }
