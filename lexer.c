@@ -17,12 +17,12 @@ TokenStream* tokenize(FILE* file) {
     return NULL;
   }
 
-  int i = 0;
-  int capacity = MAX_TOKENS;
-  int c;
-  int parsingString = 0;
-  while ((c = fgetc(file)) != EOF) {
-    if (i == capacity) {
+  size_t idx = 0;  // for inserting `Token`'s in `tokenList`
+  size_t capacity = MAX_TOKENS;
+  int ch = 0;              // current parsed unsigned character from JSON file
+  char parsingString = 0;  // boolean to bypass some tokenization if reading a string
+  while ((ch = fgetc(file)) != EOF) {
+    if (idx == capacity) {
       capacity *= 1.5;
       TOKEN* temp = (TOKEN*)realloc(tokenList, MAX_TOKENS * sizeof(TOKEN));
       if (!temp) {
@@ -33,21 +33,23 @@ TokenStream* tokenize(FILE* file) {
     }
 
     // Ignore whitespace
-    if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+    if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
       continue;
     }
-    if (isalpha(c)) {
+
+    if (isalpha(ch)) {
+      // pretty much anything is allowed inside a quoted string, so just go on with the flow
       if (parsingString) {
-        // pretty much anything is allowed inside a quoted string, so just go on with the flow
         continue;
       };
-      switch (c) {
+
+      // attempt to lexify 'true', 'false', or 'null' individually
+      switch (ch) {
         case 't': {
-          // attempt to lexify 'true' into a token
-          if ((c = fgetc(file)) == 'r' &&
-              (c = fgetc(file)) == 'u' &&
-              (c = fgetc(file)) == 'e') {
-            tokenList[i] = LITERAL_TRUE;
+          if ((ch = fgetc(file)) == 'r' &&
+              (ch = fgetc(file)) == 'u' &&
+              (ch = fgetc(file)) == 'e') {
+            tokenList[idx] = LITERAL_TRUE;
           } else {
             fprintf(stderr, "tokenize: malformed 'true' literal.\n");
             return NULL;
@@ -55,12 +57,11 @@ TokenStream* tokenize(FILE* file) {
           break;
         }
         case 'f': {
-          // attempt to lexify 'false' into a token
-          if ((c = fgetc(file)) == 'a' &&
-              (c = fgetc(file)) == 'l' &&
-              (c = fgetc(file)) == 's' &&
-              (c = fgetc(file)) == 'e') {
-            tokenList[i] = LITERAL_FALSE;
+          if ((ch = fgetc(file)) == 'a' &&
+              (ch = fgetc(file)) == 'l' &&
+              (ch = fgetc(file)) == 's' &&
+              (ch = fgetc(file)) == 'e') {
+            tokenList[idx] = LITERAL_FALSE;
           } else {
             fprintf(stderr, "tokenize: malformed 'false' literal.\n");
             return NULL;
@@ -68,11 +69,10 @@ TokenStream* tokenize(FILE* file) {
           break;
         }
         case 'n': {
-          // attempt to lexify 'null' into a token
-          if ((c = fgetc(file)) == 'u' &&
-              (c = fgetc(file)) == 'l' &&
-              (c = fgetc(file)) == 'l') {
-            tokenList[i] = LITERAL_NULL;
+          if ((ch = fgetc(file)) == 'u' &&
+              (ch = fgetc(file)) == 'l' &&
+              (ch = fgetc(file)) == 'l') {
+            tokenList[idx] = LITERAL_NULL;
           } else {
             fprintf(stderr, "tokenize: malformed 'null' literal.\n");
             return NULL;
@@ -80,43 +80,45 @@ TokenStream* tokenize(FILE* file) {
           break;
         }
         default: {
-          fprintf(stderr, "tokenize: unexpected alphanumeric token: %c (char), %d (dec)\n", c, c);
+          fprintf(stderr, "tokenize: unexpected alphabetic token: %c (char), %d (dec)\n", ch, ch);
           break;
         }
       }
     }
 
-    switch (c) {
+    switch (ch) {
       case BEGIN_OBJECT:
-        tokenList[i] = BEGIN_OBJECT;
+        tokenList[idx] = BEGIN_OBJECT;
         break;
       case END_OBJECT:
-        tokenList[i] = END_OBJECT;
+        tokenList[idx] = END_OBJECT;
         break;
       case STRING_START_END:
-        tokenList[i] = STRING_START_END;
+        tokenList[idx] = STRING_START_END;
         if (!parsingString) {
           parsingString = 1;
         } else {
           parsingString = 0;
         }
         break;
-      case ':':
-        tokenList[i] = NAME_SEPARATOR;
+      case NAME_SEPARATOR:
+        tokenList[idx] = NAME_SEPARATOR;
         break;
       default:
-        fprintf(stderr, "tokenize: unknown token: %c (char), %d (decimal)\n", c, c);
+        fprintf(stderr, "tokenize: unknown token: %c (char), %d (decimal)\n", ch, ch);
         break;
     }
-    i++;
+
+    idx++;
   }
-  TokenStream* ts = (TokenStream*)malloc(i * sizeof(TokenStream));
+
+  TokenStream* ts = (TokenStream*)malloc(idx * sizeof(TokenStream));
   if (!ts) {
     fprintf(stderr, "tokenize: malloc failed!\n");
     return NULL;
   }
 
-  ts->size = i;
+  ts->size = idx;
   ts->tokenList = tokenList;
 
 #ifdef DEBUG
@@ -142,8 +144,8 @@ static void print_token_stream(TokenStream* ts) {
   printf("---- START TOKEN STREAM ----\n");
   printf("Stream has %d tokens.\n", ts->size);
 
-  for (int i = 0; i < ts->size; i++) {
-    printf("TOKEN: %c\n", ts->tokenList[i]);
+  for (int idx = 0; idx < ts->size; idx++) {
+    printf("TOKEN: %c\n", ts->tokenList[idx]);
   }
 
   printf("---- END TOKEN STREAM ----\n");
