@@ -3,20 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "grammar.h"
-
-static int parseObject(TokenStream* ts, int* pos);
-static int parseArray(TokenStream* ts, int* pos);
-static int parseNumber(TokenStream* ts, int* pos);
-static int parseString(TokenStream* ts, int* pos);
-static int parseLiteral(TokenStream* ts, int* pos);
-static int expectNameSeparator(TokenStream* ts, int* pos);
+static void FreeTokenStream(TokenStream* ts);
 
 /**
  * @returns 0 if JSON is valid, -1 otherwise
  */
 int Parse(TokenStream* ts) {
-  if (!ts || !ts->tokenList) {
+  if (!ts || !ts->tokenArray) {
     fprintf(stderr, "parseJson: empty token stream or token list.refusing to parse.\n");
     return -1;
   }
@@ -31,25 +24,15 @@ int Parse(TokenStream* ts) {
     return -1;
   }
 
-  int pos, currentParseStatus;
+  size_t pos = 0;
+  size_t currentParseStatus = 0;
   for (pos = 0; pos < ts->size; pos++) {
-    TOKEN currentToken = ts->tokenList[pos];
+    TOKEN currentToken = ts->tokenArray[pos];
     switch (currentToken) {
-      case BEGIN_OBJECT:
-        currentParseStatus = parseObject(ts, &pos);
-        if (currentParseStatus == -1) {
-          return currentParseStatus;
-        }
-        break;
-      case STRING_START_END:
-        currentParseStatus = parseString(ts, &pos);
-        if (currentParseStatus == -1) {
-          return currentParseStatus;
-        }
-        break;
-      default:
+      default: {
         fprintf(stderr, "ParseJson: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
         break;
+      }
     }
   }
 
@@ -57,83 +40,10 @@ int Parse(TokenStream* ts) {
   return 0;
 }
 
-/**
- * object = begin-object [ member *( value-separator member ) ] end-object
- *
- * member = string name-separator value
- */
-static int parseObject(TokenStream* ts, int* pos) {
-  (*pos)++;  // parse current BEGIN_OBJECT
-
-  int foundObjectEnd = 0;
-  int parseStatus = 0;
-  TOKEN currentToken = ts->tokenList[*pos];
-  do {
-    currentToken = ts->tokenList[*pos];
-    (*pos)++;
-
-    switch (currentToken) {
-      case END_OBJECT:
-        foundObjectEnd = 1;
-        break;
-      case STRING_START_END:
-        parseStatus = parseString(ts, pos);
-        if (parseStatus == -1) {
-          return parseStatus;
-        }
-        break;
-      case NAME_SEPARATOR:
-        (*pos)++;  // consume current :
-        parseString(ts, pos);
-        int hasNameSeparator = expectNameSeparator(ts, pos);
-        if (hasNameSeparator != 0) {
-          return hasNameSeparator;
-        }
-        break;
-      default:
-        // ParseJson(ts);
-        fprintf(stderr, "parseObject: unexpected token: %d (decimal), %c (char)\n", currentToken, currentToken);
-        return -1;
-    }
-  } while (currentToken != END_OBJECT && !foundObjectEnd);
-
-  if (foundObjectEnd) {
-    return 0;
-  };
-
-  fprintf(stderr, "Expected a } for closing object.");
-  return -1;
-}
-
-static int parseString(TokenStream* ts, int* pos) {
-  (*pos)++;  // parse current STRING_START_END
-
-  int foundMatchingEndDoubleQuote = 0;
-  TOKEN currentToken = ts->tokenList[*pos];
-  do {
-    currentToken = ts->tokenList[*pos];
-    (*pos)++;
-
-    switch (currentToken) {
-      case STRING_START_END:
-        foundMatchingEndDoubleQuote = 1;
-        (*pos)++;  // mark current double quote as parsed
-        break;
-    }
-  } while (currentToken != STRING_START_END && !foundMatchingEndDoubleQuote);
-
-  if (foundMatchingEndDoubleQuote) {
-    return 0;
-  };
-
-  fprintf(stderr, "Expected closing \" for closing string.");
-  return -1;
-}
-
-static int expectNameSeparator(TokenStream* ts, int* pos) {
-  if (*pos == NAME_SEPARATOR) {
-    (*pos)++;
-    return 0;
+static void FreeTokenStream(TokenStream* ts) {
+  if (!ts) {
+    return;
   }
-  return -1;
+  free(ts->tokenArray);
+  free(ts);
 }

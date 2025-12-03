@@ -6,30 +6,43 @@
 
 #include "build_config.h"
 
-#define MAX_TOKENS 500
+#define INITIAL_MAX_TOKENS 500
 
 static void print_token_stream(TokenStream* ts);
 
+/**
+ * A JSON text is a sequence of tokens such that:
+ * `= ws value ws`
+ * 
+ * and `value` is:
+ * - string
+ * - number
+ * - boolean
+ * - null
+ * - object
+ * - array 
+ *  
+ */
 TokenStream* Tokenize(FILE* file) {
-  TOKEN* tokenList = (TOKEN*)calloc(MAX_TOKENS, sizeof(TOKEN));
-  if (!tokenList) {
+  TOKEN* tokenArray = (TOKEN*)calloc(INITIAL_MAX_TOKENS, sizeof(TOKEN));
+  if (!tokenArray) {
     fprintf(stderr, "tokenize: calloc failed!\n");
     return NULL;
   }
 
-  size_t idx = 0;  // for inserting `Token`'s in `tokenList`
-  size_t capacity = MAX_TOKENS;
+  size_t idx = 0;  // for inserting `Token`'s in `tokenArray`
+  size_t capacity = INITIAL_MAX_TOKENS;
   int ch = 0;              // current parsed unsigned character from JSON file
   char parsingString = 0;  // boolean to bypass some tokenization if reading a string
   while ((ch = fgetc(file)) != EOF) {
     if (idx == capacity) {
       capacity *= 1.5;
-      TOKEN* temp = (TOKEN*)realloc(tokenList, MAX_TOKENS * sizeof(TOKEN));
+      TOKEN* temp = (TOKEN*)realloc(tokenArray, INITIAL_MAX_TOKENS * sizeof(TOKEN));
       if (!temp) {
         fprintf(stderr, "tokenize: realloc failed!\n");
         return NULL;
       }
-      tokenList = temp;
+      tokenArray = temp;
     }
 
     // Ignore whitespace
@@ -49,7 +62,7 @@ TokenStream* Tokenize(FILE* file) {
           if ((ch = fgetc(file)) == 'r' &&
               (ch = fgetc(file)) == 'u' &&
               (ch = fgetc(file)) == 'e') {
-            tokenList[idx] = LITERAL_TRUE;
+            tokenArray[idx] = LITERAL_TRUE;
           } else {
             fprintf(stderr, "tokenize: malformed 'true' literal.\n");
             return NULL;
@@ -61,7 +74,7 @@ TokenStream* Tokenize(FILE* file) {
               (ch = fgetc(file)) == 'l' &&
               (ch = fgetc(file)) == 's' &&
               (ch = fgetc(file)) == 'e') {
-            tokenList[idx] = LITERAL_FALSE;
+            tokenArray[idx] = LITERAL_FALSE;
           } else {
             fprintf(stderr, "tokenize: malformed 'false' literal.\n");
             return NULL;
@@ -72,7 +85,7 @@ TokenStream* Tokenize(FILE* file) {
           if ((ch = fgetc(file)) == 'u' &&
               (ch = fgetc(file)) == 'l' &&
               (ch = fgetc(file)) == 'l') {
-            tokenList[idx] = LITERAL_NULL;
+            tokenArray[idx] = LITERAL_NULL;
           } else {
             fprintf(stderr, "tokenize: malformed 'null' literal.\n");
             return NULL;
@@ -88,13 +101,13 @@ TokenStream* Tokenize(FILE* file) {
 
     switch (ch) {
       case BEGIN_OBJECT:
-        tokenList[idx] = BEGIN_OBJECT;
+        tokenArray[idx] = BEGIN_OBJECT;
         break;
       case END_OBJECT:
-        tokenList[idx] = END_OBJECT;
+        tokenArray[idx] = END_OBJECT;
         break;
       case STRING_START_END:
-        tokenList[idx] = STRING_START_END;
+        tokenArray[idx] = STRING_START_END;
         if (!parsingString) {
           parsingString = 1;
         } else {
@@ -102,7 +115,7 @@ TokenStream* Tokenize(FILE* file) {
         }
         break;
       case NAME_SEPARATOR:
-        tokenList[idx] = NAME_SEPARATOR;
+        tokenArray[idx] = NAME_SEPARATOR;
         break;
       default:
         fprintf(stderr, "tokenize: unknown token: %c (char), %d (decimal)\n", ch, ch);
@@ -119,7 +132,7 @@ TokenStream* Tokenize(FILE* file) {
   }
 
   ts->size = idx;
-  ts->tokenList = tokenList;
+  ts->tokenArray = tokenArray;
 
 #ifdef DEBUG
   print_token_stream(ts);
@@ -128,24 +141,16 @@ TokenStream* Tokenize(FILE* file) {
   return ts;
 }
 
-void FreeTokenStream(TokenStream* ts) {
-  if (!ts) {
-    return;
-  }
-  free(ts->tokenList);
-  free(ts);
-}
-
 static void print_token_stream(TokenStream* ts) {
-  if (!ts || !ts->tokenList) {
+  if (!ts || !ts->tokenArray) {
     return;
   }
 
   printf("---- START TOKEN STREAM ----\n");
-  printf("Stream has %d tokens.\n", ts->size);
+  printf("Stream has %ld tokens.\n", ts->size);
 
-  for (int idx = 0; idx < ts->size; idx++) {
-    printf("TOKEN: %c\n", ts->tokenList[idx]);
+  for (size_t idx = 0; idx < ts->size; idx++) {
+    printf("TOKEN: %c\n", ts->tokenArray[idx]);
   }
 
   printf("---- END TOKEN STREAM ----\n");

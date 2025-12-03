@@ -2,8 +2,6 @@
 
 #include "build_config.h"
 #include "json_parser.h"
-#include "lexer.h"
-#include "parser.h"
 
 static void run_test(const char* testName, const char* jsonFilePath, const int expected);
 

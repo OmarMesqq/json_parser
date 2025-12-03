@@ -2,13 +2,8 @@
 #define LEXER_H
 #include <stdio.h>
 
-#include "grammar.h"
-typedef struct tokenStream {
-  TOKEN* tokenList;
-  int size;
-} TokenStream;
+#include "token.h"
 
 TokenStream* Tokenize(FILE* file);
-void FreeTokenStream(TokenStream* ts);
 
 #endif
