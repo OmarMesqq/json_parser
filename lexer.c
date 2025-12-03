@@ -272,13 +272,54 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
   char foundStrEnd = 0;
 
   while ((ch = fgetc(f)) != EOF) {
-    // Escape of `"` itself
-    if (ch == '\\' && (peek_next_char(f) == '"')) {
-      fgetc(f);  // consume next char
-      continue;
+    // Escapes
+    if (ch == '\\') {
+      ch = peek_next_char(f);
+      char isEscapeOk = 0;
+
+      switch (ch) {
+        case '"':   // quotation mark
+        case '\\':  // reverse solidus
+        case '/':   // solidus
+        case 'b':   // backspace
+        case 'f':   // form feed
+        case 'n':   // line feed
+        case 'r':   // carriage return
+        case 't':   // tab
+          isEscapeOk = 1;
+          break;
+        case 'u':  // uXXXX
+          // expect 4 hexadecimal digits for Unicode
+          for (int i = 0; i < 4; i++) {
+            ch = fgetc(f);
+            if (ch == EOF) {
+              fprintf(stderr, "Unexpected end of file while reading unicode escape hex digits.\n");
+              return 0;
+            }
+
+            if (!isxdigit(ch)) {
+              fprintf(stderr, "Invalid character in unicode escape sequence: '%c' (expected hex digit).\n", ch);
+              return 0;
+            }
+          }
+
+          isEscapeOk = 1;
+          break;
+        default:
+          fprintf(stderr, "Unexpected character after escape sequence: %c.\n", ch);
+          break;
+      }
+
+      if (isEscapeOk) {
+        fgetc(f);  // consume it
+        continue;
+      } else {
+        fprintf(stderr, "Bad escape in string!\n");
+      }
+
     }
 
-    if (ch == '"') {
+    else if (ch == '"') {
       foundStrEnd = 1;
       break;
     }
@@ -306,6 +347,7 @@ static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx) {
   fprintf(stderr, "expected 'true' literal. Was malformed.\n");
   return 0;
 }
+
 static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx) {
   int ch = 0;
   if ((ch = fgetc(f)) == 'a' &&
@@ -341,11 +383,17 @@ int peek_next_char(FILE* file) {
     return EOF;
   }
 
-  // Unget the character (puts it back)
-  ungetc(ch, file);
+  ungetc(ch, file);  // put char back
   return ch;
 }
 
+/**
+ * Returns true if `ch` is either:
+ * - ' ' space
+ * - '\t' tab
+ * - '\n' line feed/newline
+ * - '\r' carriage return
+ */
 static char is_whitespace(int ch) {
   return (ch == 0x20) || (ch == 0x09) || (ch == 0x0A) || (ch == 0x0D);
 }
@@ -355,8 +403,8 @@ static void print_token_stream(TokenStream* ts) {
     return;
   }
 
-  printf("---- START TOKEN STREAM ----\n");
   printf("Stream has %ld tokens.\n", ts->size);
+  printf("---- START TOKEN STREAM ----\n");
 
   for (size_t idx = 0; idx < ts->size; idx++) {
     printf("%c (char), %02x (hex), %d (dec)\n", ts->tokenArray[idx], ts->tokenArray[idx], ts->tokenArray[idx]);
