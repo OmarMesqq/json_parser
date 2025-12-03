@@ -15,7 +15,7 @@ static int expectNameSeparator(TokenStream* ts, int* pos);
 /**
  * @returns 0 if JSON is valid, -1 otherwise
  */
-int ParseJson(TokenStream* ts) {
+int Parse(TokenStream* ts) {
   if (!ts || !ts->tokenList) {
     fprintf(stderr, "parseJson: empty token stream or token list.refusing to parse.\n");
     return -1;
@@ -53,7 +53,7 @@ int ParseJson(TokenStream* ts) {
     }
   }
 
-  free_token_stream(ts);
+  FreeTokenStream(ts);
   return 0;
 }
 

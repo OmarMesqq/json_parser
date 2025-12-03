@@ -8,7 +8,7 @@ typedef struct tokenStream {
   int size;
 } TokenStream;
 
-TokenStream* tokenize(FILE* file);
-void free_token_stream(TokenStream* ts);
+TokenStream* Tokenize(FILE* file);
+void FreeTokenStream(TokenStream* ts);
 
 #endif

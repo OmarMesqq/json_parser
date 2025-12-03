@@ -15,17 +15,14 @@
  */
 int ValidateJson(FILE* jsonFilePtr) {
   // tokenization
-  TokenStream* ts = tokenize(jsonFilePtr);
+  TokenStream* ts = Tokenize(jsonFilePtr);
   if (ts == NULL) {
-    fprintf(stderr, RED "tokenizer failed allocate some structures!\n" RESET_COLOR);
-    return -1;
-  } else if (ts == -1) {
     fprintf(stderr, RED "tokenizer found errors during tokenization!\n" RESET_COLOR);
     return -1;
   }
 
   // parsing
-  int parsingResult = ParseJson(ts);
+  int parsingResult = Parse(ts);
   if (parsingResult == -1) {
     fprintf(stderr, RED "parser found errors during parsing!\n" RESET_COLOR);
     return -1;

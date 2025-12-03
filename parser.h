@@ -2,6 +2,6 @@
 #define PARSER_H
 #include "lexer.h"
 
-int ParseJson(TokenStream* ts);
+int Parse(TokenStream* ts);
 
 #endif

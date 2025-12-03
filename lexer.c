@@ -10,7 +10,7 @@
 
 static void print_token_stream(TokenStream* ts);
 
-TokenStream* tokenize(FILE* file) {
+TokenStream* Tokenize(FILE* file) {
   TOKEN* tokenList = (TOKEN*)calloc(MAX_TOKENS, sizeof(TOKEN));
   if (!tokenList) {
     fprintf(stderr, "tokenize: calloc failed!\n");
@@ -52,7 +52,7 @@ TokenStream* tokenize(FILE* file) {
             tokenList[idx] = LITERAL_TRUE;
           } else {
             fprintf(stderr, "tokenize: malformed 'true' literal.\n");
-            return -1;
+            return NULL;
           }
           break;
         }
@@ -64,7 +64,7 @@ TokenStream* tokenize(FILE* file) {
             tokenList[idx] = LITERAL_FALSE;
           } else {
             fprintf(stderr, "tokenize: malformed 'false' literal.\n");
-            return -1;
+            return NULL;
           }
           break;
         }
@@ -75,7 +75,7 @@ TokenStream* tokenize(FILE* file) {
             tokenList[idx] = LITERAL_NULL;
           } else {
             fprintf(stderr, "tokenize: malformed 'null' literal.\n");
-            return -1;
+            return NULL;
           }
           break;
         }
@@ -128,7 +128,7 @@ TokenStream* tokenize(FILE* file) {
   return ts;
 }
 
-void free_token_stream(TokenStream* ts) {
+void FreeTokenStream(TokenStream* ts) {
   if (!ts) {
     return;
   }
