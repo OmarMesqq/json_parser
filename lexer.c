@@ -9,113 +9,132 @@
 #define INITIAL_MAX_TOKENS 500
 
 static void print_token_stream(TokenStream* ts);
+static char is_whitespace(int ch);
+static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx);
+static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx);
+static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx);
+static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx);
+static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx);
+int peek_next_char(FILE* file);
 
 /**
  * A JSON text is a sequence of tokens such that:
  * `= ws value ws`
- * 
+ *
  * and `value` is:
  * - string
  * - number
  * - boolean
  * - null
  * - object
- * - array 
- *  
+ * - array
+ *
+ * This function converts the individual characters of the file
+ * into a meaningful token stream for later use by the parser
  */
 TokenStream* Tokenize(FILE* file) {
-  TOKEN* tokenArray = (TOKEN*)calloc(INITIAL_MAX_TOKENS, sizeof(TOKEN));
+  TOKEN* tokenArray = NULL;
+  TokenStream* ts = NULL;
+
+  tokenArray = (TOKEN*)calloc(INITIAL_MAX_TOKENS, sizeof(TOKEN));
   if (!tokenArray) {
-    fprintf(stderr, "tokenize: calloc failed!\n");
+    fprintf(stderr, "tokenize: failed to calloc TOKEN* array!\n");
     return NULL;
   }
 
-  size_t idx = 0;  // for inserting `Token`'s in `tokenArray`
+  size_t idx = 0;  // index of current `Token` in `tokenArray`
   size_t capacity = INITIAL_MAX_TOKENS;
-  int ch = 0;              // current parsed unsigned character from JSON file
-  char parsingString = 0;  // boolean to bypass some tokenization if reading a string
+
+  int ch = 0;  // current parsed unsigned character from JSON file
+  char lexifyStatus = 0;
+  char lexedValue = 0;  // value = str || number || boolean || null || object || array
+
   while ((ch = fgetc(file)) != EOF) {
     if (idx == capacity) {
       capacity *= 1.5;
       TOKEN* temp = (TOKEN*)realloc(tokenArray, INITIAL_MAX_TOKENS * sizeof(TOKEN));
       if (!temp) {
-        fprintf(stderr, "tokenize: realloc failed!\n");
+        fprintf(stderr, "tokenize: failed to realloc TOKEN* array!\n");
         return NULL;
       }
       tokenArray = temp;
     }
 
     // Ignore whitespace
-    if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+    if (is_whitespace(ch)) {
       continue;
     }
 
-    if (isalpha(ch)) {
-      // pretty much anything is allowed inside a quoted string, so just go on with the flow
-      if (parsingString) {
-        continue;
-      };
-
-      // attempt to lexify 'true', 'false', or 'null' individually
-      switch (ch) {
-        case 't': {
-          if ((ch = fgetc(file)) == 'r' &&
-              (ch = fgetc(file)) == 'u' &&
-              (ch = fgetc(file)) == 'e') {
-            tokenArray[idx] = LITERAL_TRUE;
-          } else {
-            fprintf(stderr, "tokenize: malformed 'true' literal.\n");
-            return NULL;
-          }
-          break;
-        }
-        case 'f': {
-          if ((ch = fgetc(file)) == 'a' &&
-              (ch = fgetc(file)) == 'l' &&
-              (ch = fgetc(file)) == 's' &&
-              (ch = fgetc(file)) == 'e') {
-            tokenArray[idx] = LITERAL_FALSE;
-          } else {
-            fprintf(stderr, "tokenize: malformed 'false' literal.\n");
-            return NULL;
-          }
-          break;
-        }
-        case 'n': {
-          if ((ch = fgetc(file)) == 'u' &&
-              (ch = fgetc(file)) == 'l' &&
-              (ch = fgetc(file)) == 'l') {
-            tokenArray[idx] = LITERAL_NULL;
-          } else {
-            fprintf(stderr, "tokenize: malformed 'null' literal.\n");
-            return NULL;
-          }
-          break;
-        }
-        default: {
-          fprintf(stderr, "tokenize: unexpected alphabetic token: %c (char), %d (dec)\n", ch, ch);
-          break;
-        }
+    // Numbers = [-] int [frac] [exp]
+    if (isdigit(ch) || ch == '-') {
+      lexifyStatus = lexify_number(ch, file, tokenArray, &idx);
+      if (!lexifyStatus) {
+        return NULL;
       }
+      lexedValue = 1;
+    }
+
+    // Strings = quotation-mark *char quotation-mark
+    if (ch == '"') {
+      lexifyStatus = lexify_string(file, tokenArray, &idx);
+      if (!lexifyStatus) {
+        return NULL;
+      }
+      lexedValue = 1;
+    }
+
+    // Literal 'true'
+    if (ch == 't') {
+      lexifyStatus = lexify_true(file, tokenArray, &idx);
+      if (!lexifyStatus) {
+        return NULL;
+      }
+      lexedValue = 1;
+    }
+
+    // Literal 'false'
+    if (ch == 'f') {
+      lexifyStatus = lexify_false(file, tokenArray, &idx);
+      if (!lexifyStatus) {
+        return NULL;
+      }
+      lexedValue = 1;
+    }
+
+    // Literal 'null'
+    if (ch == 'n') {
+      lexifyStatus = lexify_null(file, tokenArray, &idx);
+      if (!lexifyStatus) {
+        return NULL;
+      }
+      lexedValue = 1;
+    }
+
+    // Walk +1 position after lexifying a "primitive" value
+    if (lexedValue) {
+      ch = fgetc(file);
+      if (ch == EOF) break;
+      if (is_whitespace(ch)) continue;
     }
 
     switch (ch) {
+      case BEGIN_ARRAY:
+        tokenArray[idx] = BEGIN_ARRAY;
+        break;
       case BEGIN_OBJECT:
         tokenArray[idx] = BEGIN_OBJECT;
+        break;
+      case END_ARRAY:
+        tokenArray[idx] = END_ARRAY;
         break;
       case END_OBJECT:
         tokenArray[idx] = END_OBJECT;
         break;
-      case STRING_START_END:
-        tokenArray[idx] = STRING_START_END;
-        if (!parsingString) {
-          parsingString = 1;
-        } else {
-          parsingString = 0;
-        }
-        break;
       case NAME_SEPARATOR:
         tokenArray[idx] = NAME_SEPARATOR;
+        break;
+      case VALUE_SEPARATOR:
+        tokenArray[idx] = VALUE_SEPARATOR;
         break;
       default:
         fprintf(stderr, "tokenize: unknown token: %c (char), %d (decimal)\n", ch, ch);
@@ -125,9 +144,9 @@ TokenStream* Tokenize(FILE* file) {
     idx++;
   }
 
-  TokenStream* ts = (TokenStream*)malloc(idx * sizeof(TokenStream));
+  ts = (TokenStream*)malloc(idx * sizeof(TokenStream));
   if (!ts) {
-    fprintf(stderr, "tokenize: malloc failed!\n");
+    fprintf(stderr, "tokenize: failed to malloc TokenStream!\n");
     return NULL;
   }
 
@@ -141,6 +160,196 @@ TokenStream* Tokenize(FILE* file) {
   return ts;
 }
 
+/**
+ * number = [ minus ] int [ frac ] [ exp ]
+ *
+ * int = zero / ( digit1-9 *DIGIT )
+ * frac = decimal-point 1*DIGIT
+ * exp = e [ minus / plus ] 1*DIGIT
+ *
+ * decimal-point = %x2E       ; .
+ * digit1-9 = %x31-39         ; 1-9
+ * e = %x65 / %x45            ; e E
+ * minus = %x2D               ; -
+ * plus = %x2B                ; +
+ * zero = %x30                ; 0
+ */
+static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx) {
+  int ch = 0;
+
+  // peek at the char after `currentChar`
+  ch = peek_next_char(f);
+  if (ch == EOF) {
+    if (currentChar == '-') {
+      fprintf(stderr, "Trailing '-' at end of file.\n");
+      return 0;
+    }
+  }
+
+  if (currentChar == '0' && isdigit(ch)) {
+    fprintf(stderr, "No leading zeroes allowed in a number.\n");
+    return 0;
+  }
+
+  char foundDecimalPoint = 0;
+  char fracPartHasNumbers = 0;
+  char foundExpStart = 0;
+  char expHasNumbers = 0;
+  char isScanningExp = 0;
+  int previousCh = 0;
+
+  ch = fgetc(f);
+  while (ch != EOF) {
+    // probable start of number's `frac`, lex the following chars as part of the number's fractional part
+    if (ch == '.') {
+      if (!foundDecimalPoint) {
+        foundDecimalPoint = 1;
+      } else {
+        fprintf(stderr, "Not allowed more than one decimal point in number.\n");
+        return 0;
+      }
+      if (isScanningExp) {
+        fprintf(stderr, "Decimal point not allowed in number's exponent.\n");
+        return 0;
+      }
+    }
+    // probably the fractional part's `exp`
+    else if (ch == 'e' || ch == 'E') {
+      if (!foundExpStart) {
+        foundExpStart = 1;
+        isScanningExp = 1;
+      } else {
+        fprintf(stderr, "Not allowed more than of exponent start 'e'/'E' in number.\n");
+        return 0;
+      }
+    }
+    // probably `exp`'s signal
+    else if (ch == '-' || ch == '+') {
+      if (previousCh != 'e' && previousCh != 'E') {
+        fprintf(stderr, "Misplaced %c sign. Expected to be after 'e' or 'E'.\n", ch);
+        return 0;
+      }
+    } else if (isdigit(ch)) {
+      if (foundDecimalPoint && !fracPartHasNumbers) {
+        fracPartHasNumbers = 1;  // there are numbers after the point in X.YZ
+      }
+      if (foundExpStart && !expHasNumbers) {
+        expHasNumbers = 1;  // there are numbers after the exponent in XeYZ
+      }
+
+    } else {
+      ungetc(ch, f);  // put back read char
+      if (!is_whitespace(ch)) {
+        fprintf(stderr, "Unexpected token in number. %c (char), %02x (hex), %d (dec)\n", ch, ch, ch);
+        return 0;
+      }
+      break;
+    }
+
+    previousCh = ch;
+    ch = fgetc(f);
+  }
+
+  if (foundDecimalPoint && !fracPartHasNumbers) {
+    fprintf(stderr, "Unterminated number's fractional part!\n");
+    return 0;
+  }
+
+  if (foundExpStart && !expHasNumbers) {
+    fprintf(stderr, "Unterminated number's exponent part!\n");
+    return 0;
+  }
+
+  tokenArray[*idx] = NUMBER;
+  (*idx)++;
+  return 1;
+}
+
+static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
+  if (!f || !tokenArray) return 0;
+
+  int ch = 0;
+  char foundStrEnd = 0;
+
+  while ((ch = fgetc(f)) != EOF) {
+    // Escape of `"` itself
+    if (ch == '\\' && (peek_next_char(f) == '"')) {
+      fgetc(f);  // consume next char
+      continue;
+    }
+
+    if (ch == '"') {
+      foundStrEnd = 1;
+      break;
+    }
+  }
+
+  if (foundStrEnd) {
+    tokenArray[*idx] = STRING;
+    (*idx)++;
+    return 1;
+  } else {
+    fprintf(stderr, "string was not terminated! Aborting.\n");
+    return 0;
+  }
+}
+
+static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx) {
+  int ch = 0;
+  if ((ch = fgetc(f)) == 'r' &&
+      (ch = fgetc(f)) == 'u' &&
+      (ch = fgetc(f)) == 'e') {
+    tokenArray[*idx] = LITERAL_TRUE;
+    (*idx)++;
+    return 1;
+  }
+  fprintf(stderr, "expected 'true' literal. Was malformed.\n");
+  return 0;
+}
+static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx) {
+  int ch = 0;
+  if ((ch = fgetc(f)) == 'a' &&
+      (ch = fgetc(f)) == 'l' &&
+      (ch = fgetc(f)) == 's' &&
+      (ch = fgetc(f)) == 'e') {
+    tokenArray[*idx] = LITERAL_FALSE;
+    (*idx)++;
+    return 1;
+  }
+  fprintf(stderr, "expected 'false' literal. Was malformed.\n");
+  return 0;
+}
+
+static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx) {
+  int ch = 0;
+  if ((ch = fgetc(f)) == 'u' &&
+      (ch = fgetc(f)) == 'l' &&
+      (ch = fgetc(f)) == 'l') {
+    tokenArray[*idx] = LITERAL_NULL;
+    (*idx)++;
+    return 1;
+  }
+  fprintf(stderr, "expected 'null' literal. Was malformed.\n");
+  return 0;
+}
+
+int peek_next_char(FILE* file) {
+  int ch;
+  ch = fgetc(file);
+
+  if (ch == EOF) {
+    return EOF;
+  }
+
+  // Unget the character (puts it back)
+  ungetc(ch, file);
+  return ch;
+}
+
+static char is_whitespace(int ch) {
+  return (ch == 0x20) || (ch == 0x09) || (ch == 0x0A) || (ch == 0x0D);
+}
+
 static void print_token_stream(TokenStream* ts) {
   if (!ts || !ts->tokenArray) {
     return;
@@ -150,7 +359,7 @@ static void print_token_stream(TokenStream* ts) {
   printf("Stream has %ld tokens.\n", ts->size);
 
   for (size_t idx = 0; idx < ts->size; idx++) {
-    printf("TOKEN: %c\n", ts->tokenArray[idx]);
+    printf("%c (char), %02x (hex), %d (dec)\n", ts->tokenArray[idx], ts->tokenArray[idx], ts->tokenArray[idx]);
   }
 
   printf("---- END TOKEN STREAM ----\n");

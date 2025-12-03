@@ -14,12 +14,12 @@ typedef enum {
   END_OBJECT = '}',
   NAME_SEPARATOR = ':',
   VALUE_SEPARATOR = ',',
-  // strings
-  STRING_START_END = '"',
-  // literal names
-  LITERAL_TRUE,
-  LITERAL_FALSE,
-  LITERAL_NULL,
+
+  STRING = 'S',
+  NUMBER = 'N',
+  LITERAL_TRUE = 'T',
+  LITERAL_FALSE = 'F',
+  LITERAL_NULL = 'U',
 } TOKEN;
 
 /**
@@ -32,6 +32,5 @@ typedef struct {
   TOKEN* tokenArray;
   size_t size;
 } TokenStream;
-
 
 #endif
