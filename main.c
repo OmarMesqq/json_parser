@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   } else if (isValidJson == -1) {
     printf(RED "%s is NOT valid JSON.\n" RESET_COLOR, jsonFilePath);
   } else {
-    fprintf(stderr, RED "Unknown error. Parser returned status code %d\n" RESET_COLOR, isValidJson);
+    fprintf(stderr, RED "Unknown error. json_parser returned status code %d\n" RESET_COLOR, isValidJson);
     return -1;
   }
 

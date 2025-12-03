@@ -52,7 +52,7 @@ TokenStream* tokenize(FILE* file) {
             tokenList[idx] = LITERAL_TRUE;
           } else {
             fprintf(stderr, "tokenize: malformed 'true' literal.\n");
-            return NULL;
+            return -1;
           }
           break;
         }
@@ -64,7 +64,7 @@ TokenStream* tokenize(FILE* file) {
             tokenList[idx] = LITERAL_FALSE;
           } else {
             fprintf(stderr, "tokenize: malformed 'false' literal.\n");
-            return NULL;
+            return -1;
           }
           break;
         }
@@ -75,7 +75,7 @@ TokenStream* tokenize(FILE* file) {
             tokenList[idx] = LITERAL_NULL;
           } else {
             fprintf(stderr, "tokenize: malformed 'null' literal.\n");
-            return NULL;
+            return -1;
           }
           break;
         }
