@@ -239,12 +239,11 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* i
       }
 
     } else {
-      ungetc(ch, f);  // put back read char
       if (!is_whitespace(ch)) {
-        fprintf(stderr, "Unexpected token in number. %c (char), %02x (hex), %d (dec)\n", ch, ch, ch);
-        return 0;
+        // end of the number: put back read char and stop lexing it
+        ungetc(ch, f);
+        break;
       }
-      break;
     }
 
     previousCh = ch;
