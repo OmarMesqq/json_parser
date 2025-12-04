@@ -51,9 +51,11 @@ int Parse(TokenStream* ts) {
   }
 
   size_t parseStatus = 0;
-  char isParsingObject = 0;
+  unsigned objectStarts = 0;
+  unsigned objectEnds = 0;
+  unsigned arrayStarts = 0;
+  unsigned arrayEnds = 0;
   char isExpectingMember = 0;
-  char isParsingArray = 0;
   for (; pos < ts->size; pos++) {
     currentToken = ts->tokenArray[pos];
     if (isExpectingMember) {
@@ -70,47 +72,39 @@ int Parse(TokenStream* ts) {
 
     switch (currentToken) {
       case BEGIN_OBJECT: {
-        if (!isParsingObject) {
-          isParsingObject = 1;
-        } else {
-          fprintf(stderr, "Parse: unexpected object start '{' while already parsing an object!\n");
-          return -1;
-        }
+        objectStarts++;
+        pos++;  // walk past BEGIN_OBJECT
 
-        pos++;  // walk past BEGIN_OBJECT, so inner function only deals with member tokens
+        // empty object immediately closing itself
+        if (ts->tokenArray[pos] == END_OBJECT) {
+          objectEnds++;
+          break;
+        }
+        // else case: there is a member inside the object
         parseStatus = parse_object_member(ts->tokenArray, &pos);
         if (!parseStatus) return -1;
         break;
       }
       case END_OBJECT: {
-        if (isParsingObject) {
-          isParsingObject = 0;
-        } else {
-          fprintf(stderr, "Parse: unexpected object end '}' while already parsing an object!\n");
-          return -1;
-        }
+        objectEnds++;
         break;
       }
       case BEGIN_ARRAY: {
-        if (!isParsingArray) {
-          isParsingArray = 1;
-        } else {
-          fprintf(stderr, "Parse: unexpected array start '[' while already parsing an array!\n");
-          return -1;
+        arrayStarts++;
+        pos++;  // walk past BEGIN_ARRAY
+
+        // empty array immediately closing itself
+        if (ts->tokenArray[pos] == END_ARRAY) {
+          arrayEnds++;
+          break;
         }
 
-        pos++;  // walk past BEGIN_ARRAY, so inner function only deals with member tokens
         parseStatus = parse_array_element(ts->tokenArray, &pos);
         if (!parseStatus) return -1;
         break;
       }
       case END_ARRAY: {
-        if (isParsingArray) {
-          isParsingArray = 0;
-        } else {
-          fprintf(stderr, "Parse: unexpected array end ']' while not parsing an array!\n");
-          return -1;
-        }
+        arrayEnds++;
         break;
       }
       case VALUE_SEPARATOR: {
@@ -127,6 +121,20 @@ int Parse(TokenStream* ts) {
         return -1;
       }
     }
+  }
+
+  if (objectStarts != objectEnds) {
+    printf("objectStarts: %d\n", objectStarts);
+    printf("objectEnds: %d\n", objectEnds);
+    fprintf(stderr, "Parse: unbalanced amount of object start and end tokens!\n");
+    return -1;
+  }
+
+  if (arrayStarts != arrayEnds) {
+    printf("arrayStarts: %d\n", arrayStarts);
+    printf("arrayEnds: %d\n", arrayEnds);
+    fprintf(stderr, "Parse: unbalanced amount of array start and end tokens!\n");
+    return -1;
   }
 
   FreeTokenStream(ts);
@@ -170,8 +178,7 @@ static char parse_object_member(TOKEN* ta, size_t* pos) {
 static char parse_array_element(TOKEN* ta, size_t* pos) {
   TOKEN actualValue = ta[*pos];
 
-  // Simple and composite values inside array OR an empty array (immediately closes itself)
-  if (!is_json_value(actualValue) && actualValue != END_ARRAY) {
+  if (!is_json_value(actualValue)) {
     fprintf(stderr, "expected value inside array!\n");
     return 0;
   }
