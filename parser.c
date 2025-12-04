@@ -182,7 +182,7 @@ static char parse_array_element(TOKEN* ta, size_t* pos) {
     fprintf(stderr, "expected value inside array!\n");
     return 0;
   }
-  (*pos)++;  // walk past VALUE (assumes single token VALUE)
+
   return 1;
 }
 
