@@ -54,9 +54,16 @@ int Parse(TokenStream* ts) {
   char isExpectingMember = 0;
   for (; pos < ts->size; pos++) {
     currentToken = ts->tokenArray[pos];
-    if (isExpectingMember && currentToken != STRING) {
-      fprintf(stderr, "Parse: trailing comma! Expected object member start!\n");
-      return -1;
+    if (isExpectingMember) {
+      if (currentToken != STRING) {
+        fprintf(stderr, "Parse: trailing comma! Expected object member start!\n");
+        return -1;
+      } else {
+        parseStatus = parse_object_member(ts->tokenArray, &pos);
+        if (!parseStatus) return -1;
+        isExpectingMember = 0;
+        continue;
+      }
     }
 
     switch (currentToken) {

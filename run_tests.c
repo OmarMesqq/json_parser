@@ -11,7 +11,7 @@ int main() {
   run_test("Step 1, invalid JSON", "tests/step1/invalid.json", -1);
   run_test("Step 2, valid JSON", "tests/step2/valid.json", 0);
   run_test("Step 2, invalid JSON", "tests/step2/invalid.json", -1);
-  // run_test("Step 2, valid JSON 2", "tests/step2/valid2.json", 0);
+  run_test("Step 2, valid JSON 2", "tests/step2/valid2.json", 0);
   // run_test("Step 2, invalid JSON 2", "tests/step2/invalid2.json", 0);
   return 0;
 }
