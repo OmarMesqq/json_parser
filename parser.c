@@ -7,6 +7,7 @@ static void FreeTokenStream(TokenStream* ts);
 static inline char is_simple_value(TOKEN tk);
 static inline char is_json_value(TOKEN tk);
 static char parse_object_member(TOKEN* ta, size_t* pos);
+static char parse_array_element(TOKEN* ta, size_t* pos);
 
 /**
  * @returns 0 if JSON is valid, -1 otherwise
@@ -52,6 +53,7 @@ int Parse(TokenStream* ts) {
   size_t parseStatus = 0;
   char isParsingObject = 0;
   char isExpectingMember = 0;
+  char isParsingArray = 0;
   for (; pos < ts->size; pos++) {
     currentToken = ts->tokenArray[pos];
     if (isExpectingMember) {
@@ -90,6 +92,25 @@ int Parse(TokenStream* ts) {
         break;
       }
       case BEGIN_ARRAY: {
+        if (!isParsingArray) {
+          isParsingArray = 1;
+        } else {
+          fprintf(stderr, "Parse: unexpected array start '[' while already parsing an array!\n");
+          return -1;
+        }
+
+        pos++;  // walk past BEGIN_ARRAY, so inner function only deals with member tokens
+        parseStatus = parse_array_element(ts->tokenArray, &pos);
+        if (!parseStatus) return -1;
+        break;
+      }
+      case END_ARRAY: {
+        if (isParsingArray) {
+          isParsingArray = 0;
+        } else {
+          fprintf(stderr, "Parse: unexpected array end ']' while not parsing an array!\n");
+          return -1;
+        }
         break;
       }
       case VALUE_SEPARATOR: {
@@ -134,9 +155,27 @@ static char parse_object_member(TOKEN* ta, size_t* pos) {
     return 0;
   }
 
-  (*pos)++;  // walk past STRING (member key)
-  (*pos)++;  // walk past NAME_SEPARATOR (:)
-  // loop will already skip VALUE (considering it's made of a single token, don't do it here)
+  (*pos)++;                                // walk past STRING (member key)
+  TOKEN tokenAfterNameSep = ta[*pos + 1];  // VALUE is after NAME_SEPARATOR
+  const char isSingleTokenValue = is_simple_value(tokenAfterNameSep);
+  if (isSingleTokenValue) {
+    (*pos)++;  // walk past NAME_SEPARATOR (:)
+    // loop will already skip VALUE, so don't do it here
+  }
+  // else branch: loop will skip NAME_SEPARATOR, landing at BEGIN_ARRAY or BEGIN_OBJECT (hopefully)
+
+  return 1;
+}
+
+static char parse_array_element(TOKEN* ta, size_t* pos) {
+  TOKEN actualValue = ta[*pos];
+
+  // Simple and composite values inside array OR an empty array (immediately closes itself)
+  if (!is_json_value(actualValue) && actualValue != END_ARRAY) {
+    fprintf(stderr, "expected value inside array!\n");
+    return 0;
+  }
+  (*pos)++;  // walk past VALUE (assumes single token VALUE)
   return 1;
 }
 
