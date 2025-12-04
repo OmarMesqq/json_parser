@@ -21,8 +21,27 @@ int Parse(TokenStream* ts) {
   currentToken = ts->tokenArray[pos];
 
   // Edge case: standalone simple values in JSON
-  const char isStandaloneSimpleValue = ((pos == 0) && is_simple_value(currentToken) && ts->size == 1);
+  const char isStandaloneSimpleValue = (is_simple_value(currentToken) && ts->size == 1);
   if (isStandaloneSimpleValue) return 0;
+
+  // Edge case: standalone composite values in JSON
+  if (ts->size == 2) {
+    if (currentToken == BEGIN_OBJECT && (ts->tokenArray[pos + 1] == END_OBJECT)) {
+      // JSON is `{}`
+      return 0;
+    }
+    if (currentToken == BEGIN_ARRAY && (ts->tokenArray[pos + 1] == END_ARRAY)) {
+      // JSON is `[]`
+      return 0;
+    }
+  }
+
+  if (ts->size == 1) {
+    if (currentToken == NAME_SEPARATOR || currentToken == VALUE_SEPARATOR) {
+      fprintf(stderr, "Parse: expected JSON object, array, or literal!\n");
+      return -1;
+    }
+  }
 
   // size_t currentParseStatus = 0;
   // for (pos = 0; pos < ts->size; pos++) {
