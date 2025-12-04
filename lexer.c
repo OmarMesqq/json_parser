@@ -18,14 +18,14 @@ static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx);
 int peek_next_char(FILE* file);
 
 /**
- * A JSON text is a sequence of tokens such that:
- * `= ws value ws`
+ * A valid JSON text is a sequence of tokens such that:
+ * `ws value ws`
  *
- * and `value` is:
+ * where `ws` is ignored whitespace and `value` is one of the below:
  * - string
  * - number
- * - boolean
- * - null
+ * - boolean ('true'/'false')
+ * - 'null'
  * - object
  * - array
  *
@@ -147,7 +147,7 @@ TokenStream* Tokenize(FILE* file) {
 
   // avoid reading heap I don't own even though malloc(0) is valid (?) thanks valgrind
   if (idx == 0) goto on_error;
-  
+
   ts = (TokenStream*)malloc(idx * sizeof(TokenStream));
   if (!ts) {
     fprintf(stderr, "tokenize: failed to malloc TokenStream!\n");
@@ -169,18 +169,21 @@ on_error:
 }
 
 /**
- * number = [ minus ] int [ frac ] [ exp ]
+ * A number in JSON is of type:
+ * `[ minus ] int [ frac ] [ exp ]`, where:
  *
- * int = zero / ( digit1-9 *DIGIT )
- * frac = decimal-point 1*DIGIT
- * exp = e [ minus / plus ] 1*DIGIT
+ * - `minus` is: `-` (hex 0x2D)
+ * - `int` is: `zero / ( digit1-9 *DIGIT )`
+ * - `frac` is: `decimal-point 1*DIGIT`
+ * - `exp` is: `e [ minus / plus ] 1*DIGIT`
  *
- * decimal-point = %x2E       ; .
- * digit1-9 = %x31-39         ; 1-9
- * e = %x65 / %x45            ; e E
- * minus = %x2D               ; -
- * plus = %x2B                ; +
- * zero = %x30                ; 0
+ * and:
+ *
+ * - `decimal-point` is: `.` (hex 0x2E)
+ * - `digit1-9` is: `1-9` (hex 0x31-39)
+ * - `e` is: `e/E` (hex 0x65/0x45)
+ * - `plus` is: `+` (hex 0x2B)
+ * - `zero` is: `0` (hex 0x30)
  */
 static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx) {
   int ch = 0;
@@ -272,6 +275,33 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* i
   return 1;
 }
 
+/**
+ * A string in JSON is of type:
+ * `quotation-mark *char quotation-mark`, where:
+ *
+ * `quotation-mark` is `"` (hex 0x22)
+ * and `char` is:
+ ```
+ unescaped / escape (
+    0x22 /          ; "    quotation mark
+    0x5C /          ; \    reverse solidus
+    0x2F /          ; /    solidus
+    0x62 /          ; b    backspace
+    0x66 /          ; f    form feed
+    0x6E /          ; n    line feed
+    0x72 /          ; r    carriage return
+    0x74 /          ; t    tab
+    0x75 4HEXDIG )  ; uXXXX
+  ```
+ *
+ * where:
+ * `escape` is `\` (hex 0x5C) and
+ * `unescaped = 0x20-21 / 0x23-5B / 0x5D-10FFFF`, i.e
+ * any Unicode character EXCEPT:
+ * - the quotation mark (`"`)
+ * - control characters (`0x00` through `0x1F`)
+ * - backslack (`\`)
+ */
 static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
   if (!f || !tokenArray) return 0;
 

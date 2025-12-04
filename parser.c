@@ -165,8 +165,11 @@ on_cleanup:
 }
 
 /**
- * An object member (a.k.a name/value pair) is defined as:
- * `member = STRING NAME_SEPARATOR VALUE`
+ * An object in JSON is of type:
+ * `BEGIN_OBJECT *(member *(VALUE_SEPARATOR member)) END_OBJECT`
+ *
+ * where its possible member(s) - aka name/value pair(s) -  are defined as:
+ * `STRING NAME_SEPARATOR VALUE`
  */
 static char parse_object_member(TOKEN* ta, size_t* pos) {
   TOKEN actualName = ta[*pos];
@@ -198,6 +201,10 @@ static char parse_object_member(TOKEN* ta, size_t* pos) {
   return 1;
 }
 
+/**
+ * An array in JSON is of type:
+ * `BEGIN_ARRAY *(VALUE *(VALUE_SEPARATOR VALUE)) END_ARRAY`
+ */
 static char parse_array_element(TOKEN* ta, size_t* pos) {
   TOKEN actualValue = ta[*pos];
 
