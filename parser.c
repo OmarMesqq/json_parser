@@ -11,7 +11,7 @@ static char is_simple_value(TOKEN tk);
  */
 int Parse(TokenStream* ts) {
   if (!ts || !ts->tokenArray || ts->size == 0) {
-    fprintf(stderr, "Parse: No tokens in JSON file!\n");
+    fprintf(stderr, "Parse: no tokens in JSON file!\n");
     return -1;
   }
 
@@ -37,7 +37,10 @@ int Parse(TokenStream* ts) {
   }
 
   if (ts->size == 1) {
-    if (currentToken == NAME_SEPARATOR || currentToken == VALUE_SEPARATOR) {
+    if (currentToken == NAME_SEPARATOR ||
+        currentToken == VALUE_SEPARATOR ||
+        currentToken == END_OBJECT ||
+        currentToken == END_ARRAY) {
       fprintf(stderr, "Parse: expected JSON object, array, or literal!\n");
       return -1;
     }
