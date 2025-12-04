@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 static void FreeTokenStream(TokenStream* ts);
-static char is_simple_value(TOKEN tk);
-static char is_json_value(TOKEN tk);
+static inline char is_simple_value(TOKEN tk);
+static inline char is_json_value(TOKEN tk);
 static char parse_object_member(TOKEN* ta, size_t* pos);
 
 /**
@@ -145,7 +145,7 @@ static char parse_object_member(TOKEN* ta, size_t* pos) {
  *
  * string || number || 'true || 'false' || 'null'
  */
-static char is_simple_value(TOKEN tk) {
+static inline char is_simple_value(TOKEN tk) {
   return (tk == STRING) || (tk == NUMBER) || (tk == LITERAL_TRUE) || (tk == LITERAL_FALSE) || (tk == LITERAL_NULL);
 }
 
@@ -153,7 +153,7 @@ static char is_simple_value(TOKEN tk) {
  * A JSON value is either:
  * string || number || 'true || 'false' || 'null' || object || array
  */
-static char is_json_value(TOKEN tk) {
+static inline char is_json_value(TOKEN tk) {
   return (tk == STRING) ||
          (tk == NUMBER) ||
          (tk == LITERAL_TRUE) ||
