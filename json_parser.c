@@ -23,9 +23,5 @@ int ValidateJson(FILE* jsonFilePtr) {
 
   // parsing
   int parsingResult = Parse(ts);
-  if (parsingResult == -1) {
-    fprintf(stderr, RED "parser found errors during parsing!\n" RESET_COLOR);
-    return -1;
-  }
   return parsingResult;
 }
