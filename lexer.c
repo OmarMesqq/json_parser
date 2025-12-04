@@ -112,6 +112,7 @@ TokenStream* Tokenize(FILE* file) {
 
     // Walk +1 position after lexifying a "primitive" value
     if (lexedValue) {
+      lexedValue = 0;
       ch = fgetc(file);
       if (ch == EOF) break;
       if (is_whitespace(ch)) continue;
