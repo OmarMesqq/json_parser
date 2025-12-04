@@ -5,6 +5,8 @@
 
 static void FreeTokenStream(TokenStream* ts);
 static char is_simple_value(TOKEN tk);
+static char is_json_value(TOKEN tk);
+static char parse_object_member(TOKEN* ta, size_t* pos);
 
 /**
  * @returns 0 if JSON is valid, -1 otherwise
@@ -48,13 +50,47 @@ int Parse(TokenStream* ts) {
   }
 
   size_t parseStatus = 0;
-  for (pos = 0; pos < ts->size; pos++) {
+  char isParsingObject = 0;
+  char isExpectingMember = 0;
+  for (; pos < ts->size; pos++) {
     currentToken = ts->tokenArray[pos];
+    if (isExpectingMember && currentToken != STRING) {
+      fprintf(stderr, "Parse: trailing comma! Expected object member start!\n");
+      return -1;
+    }
+
     switch (currentToken) {
       case BEGIN_OBJECT: {
+        if (!isParsingObject) {
+          isParsingObject = 1;
+        } else {
+          fprintf(stderr, "Parse: unexpected object start '{' while already parsing an object!\n");
+          return -1;
+        }
+
+        parseStatus = parse_object_member(ts->tokenArray, &pos);
+        if (!parseStatus) return -1;
+        break;
+      }
+      case END_OBJECT: {
+        if (isParsingObject) {
+          isParsingObject = 0;
+        } else {
+          fprintf(stderr, "Parse: unexpected object end '}' while already parsing an object!\n");
+          return -1;
+        }
         break;
       }
       case BEGIN_ARRAY: {
+        break;
+      }
+      case VALUE_SEPARATOR: {
+        if (!isExpectingMember) {
+          isExpectingMember = 1;
+        } else {
+          fprintf(stderr, "Parse: unexpected value separator ',' while already expecting another object member!\n");
+          return -1;
+        }
         break;
       }
       default: {
@@ -68,8 +104,55 @@ int Parse(TokenStream* ts) {
   return 0;
 }
 
+/**
+ * An object member (a.k.a name/value pair) is defined as:
+ * `member = STRING NAME_SEPARATOR VALUE`
+ */
+static char parse_object_member(TOKEN* ta, size_t* pos) {
+  TOKEN actualName = ta[*pos + 1];
+  TOKEN actualNameSep = ta[*pos + 2];
+  TOKEN actualValue = ta[*pos + 3];
+
+  if (actualName != STRING) {
+    fprintf(stderr, "expected quoted string as object member name (property key)!\n");
+    return 0;
+  }
+  if (actualNameSep != NAME_SEPARATOR) {
+    fprintf(stderr, "expected colon (:) for separating names in an object member!\n");
+    return 0;
+  }
+  if (!is_json_value(actualValue)) {
+    fprintf(stderr, "expected value in the object member!\n");
+    return 0;
+  }
+
+  (*pos)++; // walk past BEGIN_OBJECT
+  (*pos)++; // walk past STRING (member key)
+  (*pos)++; // walk past NAME_SEPARATOR (:)
+  return 1;
+}
+
+/**
+ * Checks if the `TOKEN` `tk` is a JSON value that can be represented in a single token i.e:
+ *
+ * string || number || 'true || 'false' || 'null'
+ */
 static char is_simple_value(TOKEN tk) {
   return (tk == STRING) || (tk == NUMBER) || (tk == LITERAL_TRUE) || (tk == LITERAL_FALSE) || (tk == LITERAL_NULL);
+}
+
+/**
+ * A JSON value is either:
+ * string || number || 'true || 'false' || 'null' || object || array
+ */
+static char is_json_value(TOKEN tk) {
+  return (tk == STRING) ||
+         (tk == NUMBER) ||
+         (tk == LITERAL_TRUE) ||
+         (tk == LITERAL_FALSE) ||
+         (tk == LITERAL_NULL) ||
+         (tk == BEGIN_OBJECT) ||
+         (tk == BEGIN_ARRAY);
 }
 
 static void FreeTokenStream(TokenStream* ts) {
