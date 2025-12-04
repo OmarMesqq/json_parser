@@ -17,7 +17,7 @@ int ValidateJson(FILE* jsonFilePtr) {
   // tokenization
   TokenStream* ts = Tokenize(jsonFilePtr);
   if (ts == NULL) {
-    fprintf(stderr, RED "tokenizer found errors during tokenization!\n" RESET_COLOR);
+    // fprintf(stderr, "tokenizer found errors during tokenization!\n");
     return -1;
   }
 

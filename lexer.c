@@ -138,8 +138,8 @@ TokenStream* Tokenize(FILE* file) {
         tokenArray[idx] = VALUE_SEPARATOR;
         break;
       default:
-        fprintf(stderr, "tokenize: unknown token: %c (char), %d (decimal)\n", ch, ch);
-        break;
+        fprintf(stderr, "tokenize: unexpected token: %c (char), %d (decimal)\n", ch, ch);
+        return NULL;
     }
 
     idx++;
