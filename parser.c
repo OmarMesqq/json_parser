@@ -68,6 +68,7 @@ int Parse(TokenStream* ts) {
           return -1;
         }
 
+        pos++;  // walk past BEGIN_OBJECT, so inner function only deals with member tokens
         parseStatus = parse_object_member(ts->tokenArray, &pos);
         if (!parseStatus) return -1;
         break;
@@ -109,9 +110,9 @@ int Parse(TokenStream* ts) {
  * `member = STRING NAME_SEPARATOR VALUE`
  */
 static char parse_object_member(TOKEN* ta, size_t* pos) {
-  TOKEN actualName = ta[*pos + 1];
-  TOKEN actualNameSep = ta[*pos + 2];
-  TOKEN actualValue = ta[*pos + 3];
+  TOKEN actualName = ta[*pos];
+  TOKEN actualNameSep = ta[*pos + 1];
+  TOKEN actualValue = ta[*pos + 2];
 
   if (actualName != STRING) {
     fprintf(stderr, "expected quoted string as object member name (property key)!\n");
@@ -126,9 +127,9 @@ static char parse_object_member(TOKEN* ta, size_t* pos) {
     return 0;
   }
 
-  (*pos)++; // walk past BEGIN_OBJECT
-  (*pos)++; // walk past STRING (member key)
-  (*pos)++; // walk past NAME_SEPARATOR (:)
+  (*pos)++;  // walk past STRING (member key)
+  (*pos)++;  // walk past NAME_SEPARATOR (:)
+  // loop will already skip VALUE (considering it's made of a single token, don't do it here)
   return 1;
 }
 
