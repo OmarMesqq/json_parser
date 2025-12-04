@@ -36,6 +36,7 @@ int Parse(TokenStream* ts) {
     }
   }
 
+  // Edge case: bad tokens starting JSON
   if (ts->size == 1) {
     if (currentToken == NAME_SEPARATOR ||
         currentToken == VALUE_SEPARATOR ||
@@ -46,16 +47,22 @@ int Parse(TokenStream* ts) {
     }
   }
 
-  // size_t currentParseStatus = 0;
-  // for (pos = 0; pos < ts->size; pos++) {
-  //   TOKEN currentToken = ts->tokenArray[pos];
-  //   switch (currentToken) {
-  //     default: {
-  //       fprintf(stderr, "ParseJson: unexpected token: %d (dec), %02x (hex), %c (char)\n", currentToken, currentToken, currentToken);
-  //       break;
-  //     }
-  //   }
-  // }
+  size_t parseStatus = 0;
+  for (pos = 0; pos < ts->size; pos++) {
+    currentToken = ts->tokenArray[pos];
+    switch (currentToken) {
+      case BEGIN_OBJECT: {
+        break;
+      }
+      case BEGIN_ARRAY: {
+        break;
+      }
+      default: {
+        fprintf(stderr, "Parse: unexpected token: %d (dec), %02x (hex), %c (char)\n", currentToken, currentToken, currentToken);
+        return -1;
+      }
+    }
+  }
 
   FreeTokenStream(ts);
   return 0;
