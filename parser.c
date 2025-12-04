@@ -13,9 +13,11 @@ static char parse_array_element(TOKEN* ta, size_t* pos);
  * @returns 0 if JSON is valid, -1 otherwise
  */
 int Parse(TokenStream* ts) {
+  int status = 0;
   if (!ts || !ts->tokenArray || ts->size == 0) {
     fprintf(stderr, "Parse: no tokens in JSON file!\n");
-    return -1;
+    status = -1;
+    goto on_cleanup;
   }
 
   size_t pos = 0;
@@ -25,17 +27,22 @@ int Parse(TokenStream* ts) {
 
   // Edge case: standalone simple values in JSON
   const char isStandaloneSimpleValue = (is_simple_value(currentToken) && ts->size == 1);
-  if (isStandaloneSimpleValue) return 0;
+  if (isStandaloneSimpleValue) {
+    status = 0;
+    goto on_cleanup;
+  }
 
   // Edge case: standalone composite values in JSON
   if (ts->size == 2) {
     if (currentToken == BEGIN_OBJECT && (ts->tokenArray[pos + 1] == END_OBJECT)) {
       // JSON is `{}`
-      return 0;
+      status = 0;
+      goto on_cleanup;
     }
     if (currentToken == BEGIN_ARRAY && (ts->tokenArray[pos + 1] == END_ARRAY)) {
       // JSON is `[]`
-      return 0;
+      status = 0;
+      goto on_cleanup;
     }
   }
 
@@ -46,7 +53,8 @@ int Parse(TokenStream* ts) {
         currentToken == END_OBJECT ||
         currentToken == END_ARRAY) {
       fprintf(stderr, "Parse: expected JSON object, array, or literal!\n");
-      return -1;
+      status = -1;
+      goto on_cleanup;
     }
   }
 
@@ -61,10 +69,14 @@ int Parse(TokenStream* ts) {
     if (isExpectingMember) {
       if (currentToken != STRING) {
         fprintf(stderr, "Parse: trailing comma! Expected object member start!\n");
-        return -1;
+        status = -1;
+        goto on_cleanup;
       } else {
         parseStatus = parse_object_member(ts->tokenArray, &pos);
-        if (!parseStatus) return -1;
+        if (!parseStatus) {
+          status = -1;
+          goto on_cleanup;
+        }
         isExpectingMember = 0;
         continue;
       }
@@ -82,7 +94,10 @@ int Parse(TokenStream* ts) {
         }
         // else case: there is a member inside the object
         parseStatus = parse_object_member(ts->tokenArray, &pos);
-        if (!parseStatus) return -1;
+        if (!parseStatus) {
+          status = -1;
+          goto on_cleanup;
+        }
         break;
       }
       case END_OBJECT: {
@@ -100,7 +115,10 @@ int Parse(TokenStream* ts) {
         }
 
         parseStatus = parse_array_element(ts->tokenArray, &pos);
-        if (!parseStatus) return -1;
+        if (!parseStatus) {
+          status = -1;
+          goto on_cleanup;
+        }
         break;
       }
       case END_ARRAY: {
@@ -112,13 +130,15 @@ int Parse(TokenStream* ts) {
           isExpectingMember = 1;
         } else {
           fprintf(stderr, "Parse: unexpected value separator ',' while already expecting another object member!\n");
-          return -1;
+          status = -1;
+          goto on_cleanup;
         }
         break;
       }
       default: {
         fprintf(stderr, "Parse: unexpected token: %d (dec), %02x (hex), %c (char)\n", currentToken, currentToken, currentToken);
-        return -1;
+        status = -1;
+        goto on_cleanup;
       }
     }
   }
@@ -127,18 +147,21 @@ int Parse(TokenStream* ts) {
     printf("objectStarts: %d\n", objectStarts);
     printf("objectEnds: %d\n", objectEnds);
     fprintf(stderr, "Parse: unbalanced amount of object start and end tokens!\n");
-    return -1;
+    status = -1;
+    goto on_cleanup;
   }
 
   if (arrayStarts != arrayEnds) {
     printf("arrayStarts: %d\n", arrayStarts);
     printf("arrayEnds: %d\n", arrayEnds);
     fprintf(stderr, "Parse: unbalanced amount of array start and end tokens!\n");
-    return -1;
+    status = -1;
+    goto on_cleanup;
   }
 
+on_cleanup:
   FreeTokenStream(ts);
-  return 0;
+  return status;
 }
 
 /**

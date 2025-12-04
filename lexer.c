@@ -39,7 +39,7 @@ TokenStream* Tokenize(FILE* file) {
   tokenArray = (TOKEN*)calloc(INITIAL_MAX_TOKENS, sizeof(TOKEN));
   if (!tokenArray) {
     fprintf(stderr, "tokenize: failed to calloc TOKEN* array!\n");
-    return NULL;
+    goto on_error;
   }
 
   size_t idx = 0;  // index of current `Token` in `tokenArray`
@@ -55,7 +55,7 @@ TokenStream* Tokenize(FILE* file) {
       TOKEN* temp = (TOKEN*)realloc(tokenArray, INITIAL_MAX_TOKENS * sizeof(TOKEN));
       if (!temp) {
         fprintf(stderr, "tokenize: failed to realloc TOKEN* array!\n");
-        return NULL;
+        goto on_error;
       }
       tokenArray = temp;
     }
@@ -69,7 +69,7 @@ TokenStream* Tokenize(FILE* file) {
     if (isdigit(ch) || ch == '-') {
       lexifyStatus = lexify_number(ch, file, tokenArray, &idx);
       if (!lexifyStatus) {
-        return NULL;
+        goto on_error;
       }
       lexedValue = 1;
     }
@@ -78,7 +78,7 @@ TokenStream* Tokenize(FILE* file) {
     if (ch == '"') {
       lexifyStatus = lexify_string(file, tokenArray, &idx);
       if (!lexifyStatus) {
-        return NULL;
+        goto on_error;
       }
       lexedValue = 1;
     }
@@ -87,7 +87,7 @@ TokenStream* Tokenize(FILE* file) {
     if (ch == 't') {
       lexifyStatus = lexify_true(file, tokenArray, &idx);
       if (!lexifyStatus) {
-        return NULL;
+        goto on_error;
       }
       lexedValue = 1;
     }
@@ -96,7 +96,7 @@ TokenStream* Tokenize(FILE* file) {
     if (ch == 'f') {
       lexifyStatus = lexify_false(file, tokenArray, &idx);
       if (!lexifyStatus) {
-        return NULL;
+        goto on_error;
       }
       lexedValue = 1;
     }
@@ -105,7 +105,7 @@ TokenStream* Tokenize(FILE* file) {
     if (ch == 'n') {
       lexifyStatus = lexify_null(file, tokenArray, &idx);
       if (!lexifyStatus) {
-        return NULL;
+        goto on_error;
       }
       lexedValue = 1;
     }
@@ -139,16 +139,19 @@ TokenStream* Tokenize(FILE* file) {
         break;
       default:
         fprintf(stderr, "tokenize: unexpected token: %c (char), %d (decimal)\n", ch, ch);
-        return NULL;
+        goto on_error;
     }
 
     idx++;
   }
 
+  // avoid reading heap I don't own even though malloc(0) is valid (?) thanks valgrind
+  if (idx == 0) goto on_error;
+  
   ts = (TokenStream*)malloc(idx * sizeof(TokenStream));
   if (!ts) {
     fprintf(stderr, "tokenize: failed to malloc TokenStream!\n");
-    return NULL;
+    goto on_error;
   }
 
   ts->size = idx;
@@ -159,6 +162,10 @@ TokenStream* Tokenize(FILE* file) {
 #endif
 
   return ts;
+on_error:
+  if (tokenArray) free(tokenArray);
+  if (ts) free(ts);
+  return NULL;
 }
 
 /**
