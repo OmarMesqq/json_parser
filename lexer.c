@@ -341,8 +341,7 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
             }
           }
 
-          isEscapeOk = 1;
-          break;
+          continue;
         default:
           fprintf(stderr, "Unexpected character after escape sequence: %c.\n", ch);
           break;
