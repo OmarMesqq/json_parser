@@ -1,7 +1,8 @@
 #include <stdio.h>
 
 #include "build_config.h"
-#include "json_parser.h"
+#include "lexer.h"
+#include "parser.h"
 
 int main(int argc, char** argv) {
   if (argc != 2) {
@@ -9,7 +10,6 @@ int main(int argc, char** argv) {
     return -1;
   }
   const char* jsonFilePath = argv[1];
-  int isValidJson = 0;
 
   FILE* fp = fopen(jsonFilePath, "r");
   if (!fp) {
@@ -17,14 +17,22 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  isValidJson = ValidateJson(fp);
+  // tokenization
+  TokenStream* ts = Tokenize(fp);
+  if (ts == NULL) {
+    // fprintf(stderr, "tokenizer found errors during tokenization!\n");
+    return -1;
+  }
 
-  if (isValidJson == 0) {
+  // parsing
+  int parsingResult = Parse(ts);
+
+  if (parsingResult == 0) {
     printf(GREEN "%s is valid JSON.\n" RESET_COLOR, jsonFilePath);
-  } else if (isValidJson == -1) {
+  } else if (parsingResult == -1) {
     printf(RED "%s is NOT valid JSON.\n" RESET_COLOR, jsonFilePath);
   } else {
-    fprintf(stderr, RED "Unknown error. json_parser returned status code %d\n" RESET_COLOR, isValidJson);
+    fprintf(stderr, RED "Unknown error. json_parser returned status code %d\n" RESET_COLOR, parsingResult);
     return -1;
   }
 

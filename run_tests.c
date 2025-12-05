@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "build_config.h"
-#include "json_parser.h"
+#include "lexer.h"
+#include "parser.h"
 
 static void run_test(const char* testName, const char* jsonFilePath, const int expected);
 
@@ -72,12 +74,14 @@ static void run_test(const char* testName, const char* jsonFilePath, const int e
     return;
   }
 
-  int actual = ValidateJson(fp);
+  TokenStream* ts = Tokenize(fp);  // tokenization
+  int actual = Parse(ts);          // parsing
 
   if (actual == expected) {
     printf(GREEN "Test %s on file %s passed.\n" RESET_COLOR, testName, jsonFilePath);
   } else {
     fprintf(stderr, RED "Test %s on file %s FAILED. Expected %d, got %d!\n" RESET_COLOR, testName, jsonFilePath, expected, actual);
+    exit(-1);
   }
 
   fclose(fp);

@@ -3,13 +3,13 @@ OUTPUT := /tmp/json_parser
 TEST_OUTPUT := /tmp/json_parser_tests
 
 release:
-	gcc -O3 -Wall -Wextra -Winline  main.c json_parser.c lexer.c parser.c -o $(OUTPUT)
+	gcc -O3 -Wall -Wextra -Winline main.c lexer.c parser.c -o $(OUTPUT)
 
 debug:
-	gcc -g -O0 -Wall -Wextra main.c json_parser.c lexer.c parser.c -o $(OUTPUT)
+	gcc -g -O0 -Wall -Wextra -Winline main.c lexer.c parser.c -o $(OUTPUT)
 
 test:
-	gcc -g -Wall -Wextra  run_tests.c json_parser.c lexer.c parser.c -o $(TEST_OUTPUT)
+	gcc -g -Wall -Wextra -Winline run_tests.c lexer.c parser.c -o $(TEST_OUTPUT)
 
 all: test debug
 
