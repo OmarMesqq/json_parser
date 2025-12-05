@@ -52,7 +52,7 @@ TokenStream* Tokenize(FILE* file) {
   while ((ch = fgetc(file)) != EOF) {
     if (idx == capacity) {
       capacity *= 1.5;
-      TOKEN* temp = (TOKEN*)realloc(tokenArray, INITIAL_MAX_TOKENS * sizeof(TOKEN));
+      TOKEN* temp = (TOKEN*)realloc(tokenArray, capacity * sizeof(TOKEN));
       if (!temp) {
         fprintf(stderr, "tokenize: failed to realloc TOKEN* array!\n");
         goto on_error;
@@ -148,7 +148,7 @@ TokenStream* Tokenize(FILE* file) {
   // avoid reading heap I don't own even though malloc(0) is valid (?) thanks valgrind
   if (idx == 0) goto on_error;
 
-  ts = (TokenStream*)malloc(idx * sizeof(TokenStream));
+  ts = (TokenStream*)malloc(sizeof(TokenStream));
   if (!ts) {
     fprintf(stderr, "tokenize: failed to malloc TokenStream!\n");
     goto on_error;
