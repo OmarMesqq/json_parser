@@ -327,6 +327,7 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
           break;
         case 'u':  // uXXXX
           // expect 4 hexadecimal digits for Unicode
+          ch = fgetc(f);  // consume 'u'
           for (int i = 0; i < 4; i++) {
             ch = fgetc(f);
             if (ch == EOF) {
