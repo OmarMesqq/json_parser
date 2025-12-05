@@ -213,6 +213,12 @@ static char parse_array_element(TOKEN* ta, size_t* pos) {
     return 0;
   }
 
+  // composite start values (array and object need to handled in loop)
+  const char isSingleTokenValue = is_simple_value(actualValue);
+  if (!isSingleTokenValue) {
+    (*pos)--;
+  }
+
   return 1;
 }
 
