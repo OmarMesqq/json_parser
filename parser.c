@@ -52,13 +52,10 @@ int Parse(TokenStream* ts) {
 
   if (cursor != ts->size) {
     fprintf(stderr, "Parse: only a single root value allowed in JSON!\n");
-    // fprintf(stderr, "cursor: %ld\n", cursor);
-    // fprintf(stderr, "ts->size: %ld\n", ts->size);
     res = -1;
   }
 
 on_cleanup:
-  // printf("final depth: %ld\n", depth);
   free_token_stream(ts);
   depth = 0;
   cursor = 0;
@@ -122,18 +119,16 @@ static char parse_value(TOKEN* tokenArray) {
   } else if (currentToken == BEGIN_OBJECT) {
     depth++;
     res = parse_object(tokenArray);
+    depth--;
   } else if (currentToken == BEGIN_ARRAY) {
     depth++;
     res = parse_array(tokenArray);
+    depth--;
   } else {
     fprintf(stderr, "parse_value: unexpected token: %c\n", currentToken);
     res = -1;
   }
 
-  // no wrapping around the depth counter!
-  if (depth > 0) {
-    depth--;
-  };
   return res;
 }
 
