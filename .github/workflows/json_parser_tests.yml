@@ -1,0 +1,32 @@
+name: Test runner for JSON parser
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Valgrind
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+
+    - name: Compile Parser
+      run: make release debug
+
+    - name: Compile test runner
+      run: make test
+
+    - name: Run tests
+      run: /tmp/json_parser_tests
+
+    - name: Check memory leaks and errors
+      run: make memleak-check
