@@ -13,12 +13,12 @@ is a top-down LR lexer/parser duo.
 This implementation is entirely compliant with the official JSON specification
 ([RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html)).
 
-## Building
+# Building
 You need `gcc`, `make`, and probably build tools like Ubuntu's `build-essentials` 
 or Arch's `base-devel`. Also, `valgrind` to optionally check for resource leaks.
 
 
-## JSON?
+# JSON?
 To understand the formal grammar of the JavaScript Object Notation I highly recommend
 reading the actual RFC, but I'll try to summarize it here.
 
@@ -27,13 +27,9 @@ A JSON text is a [UTF-8](https://en.wikipedia.org/wiki/UTF-8) text file of type:
 ws value ws
 ```
 
-where `ws` is whitespace to be ignored and `value` is one of the below:
-- string 
-- number
-- boolean (`true` / `false`)
-- `null`
-- object (`{...}`)
-- array (`[...]`)
+where `ws` is whitespace to be ignored and `value` is the production:
+
+$$ Value \rightarrow Number | String | Array ∣ Object ∣ Boolean | Null $$
 
 
 ## Numbers
@@ -49,12 +45,12 @@ Thus, the structure for a number is like:
 
 
 ## Strings
-Much similar to a C-string, these must start and end with quotation marks (`"`).
+These must start and end with quotation marks (`"`).
 Inside of it lies zero or more characters (`char`), leaving us at:
 
 `quotation-mark *char quotation-mark`
 
-The `char` can be a regular unescaped character or an escaped one.
+`char` can be a regular unescaped character or an escaped one.
 In the latter case, it must be preceded by the backslash (`\`) and 
 followed by either:
 - `"`: same old quotation mark
@@ -67,4 +63,21 @@ followed by either:
 - `t`: horizontal tab
 - `uXXXX`: for a character outside Unicode's [Basic Multilingual Plane](https://en.wikipedia.org/wiki/Plane_(Unicode)#Basic_Multilingual_Plane), you must escape `u`, followed by 4 hexadecimal digits that represent it
 
+## Arrays
+Unordered collection of elements. MUST
+start with `[` and end with `]`.
+
+Arrays are nonterminals described by the production:
+$$ Array \rightarrow [ *(Value) * (, Value) ] $$
+
+
+## Objects
+Ordered collection of elements. MUST
+start with `{` and end with `}`.
+
+Objects are also nonterminals described by the production:
+$$ Object \rightarrow \{ *(Member *(, Member)) \} $$
+
+where `Member` is:
+$$ Member \rightarrow String : Value $$
 

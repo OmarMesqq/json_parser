@@ -95,11 +95,18 @@ static char eat(TOKEN expectedToken, TOKEN* ta) {
 }
 
 /**
- * A JSON value is the production:
+ * Parses a JSON value:
  *
  * `Value -> Object ∣ Array ∣ String ∣ Number | Boolean | Null`
  *
- * where `Value`, `Object`, and `Array` are nonterminals.
+ * Secures current call stack depth against MAX_DEPTH. If passing, decides:
+ *
+ * 1. For simple/primitive values attempts to `eat` current token
+ *
+ * 2. For nonterminals, increments `depth` and calls `parse_object` or `parse_array`
+ *
+ * At end of execution, decrements `depth` and
+ * @returns 0 on success and -1 on failure
  */
 static char parse_value(TOKEN* tokenArray) {
   if (depth > MAX_DEPTH) {
@@ -123,16 +130,24 @@ static char parse_value(TOKEN* tokenArray) {
     res = -1;
   }
 
-  if (depth > 0) depth--;
+  // no wrapping around the depth counter!
+  if (depth > 0) {
+    depth--;
+  };
   return res;
 }
 
 /**
  * Parses a JSON object:
- * `BEGIN_OBJECT *(member *(VALUE_SEPARATOR member)) END_OBJECT`
+ * `Object -> BEGIN_OBJECT *(member *(VALUE_SEPARATOR member)) END_OBJECT`
  *
  * where its possible member(s) - aka name/value pair(s) -  are defined as:
- * `STRING NAME_SEPARATOR VALUE`
+ * `Member -> STRING NAME_SEPARATOR VALUE`
+ *
+ * After consuming `{`, the `STRING` key, and `NAME_SEPARATOR`,
+ * calls `parse_value` recursively for the last element of `Member`
+ *
+ * @returns 0 on success and -1 on failure
  */
 static char parse_object(TOKEN* ta) {
   if (depth > MAX_DEPTH) {
@@ -163,6 +178,8 @@ static char parse_object(TOKEN* ta) {
       res = eat(VALUE_SEPARATOR, ta);
       if (res == -1) return -1;
 
+      // if previous token is a comma and the object is already closed, this is invalid
+      // a following member is expected in this case
       if (ta[cursor] == END_OBJECT) {
         fprintf(stderr, "Trailing comma in object!\n");
         return -1;
@@ -177,8 +194,13 @@ static char parse_object(TOKEN* ta) {
 }
 
 /**
- * An array in JSON is of type:
- * `BEGIN_ARRAY *(VALUE *(VALUE_SEPARATOR VALUE)) END_ARRAY`
+ * Parses a JSON array:
+ * `Array -> BEGIN_ARRAY *(VALUE *(VALUE_SEPARATOR VALUE)) END_ARRAY`
+ *
+ *
+ * Calls `parse_value` recursively after consuming `[`
+ *
+ * @returns 0 on success and -1 on failure
  */
 static char parse_array(TOKEN* ta) {
   if (depth > MAX_DEPTH) {
@@ -190,7 +212,7 @@ static char parse_array(TOKEN* ta) {
   res = eat(BEGIN_ARRAY, ta);
   if (res == -1) return -1;
   TOKEN currentToken = ta[cursor];
-  
+
   while (currentToken != END_ARRAY) {
     res = parse_value(ta);
     if (res == -1) return -1;
@@ -205,8 +227,10 @@ static char parse_array(TOKEN* ta) {
       res = eat(VALUE_SEPARATOR, ta);
       if (res == -1) return -1;
 
+      // if previous token is a comma and the array is already closed, this is invalid
+      // a following value is expected in this case
       if (ta[cursor] == END_ARRAY) {
-        fprintf(stderr, "trailing comma in array!\n");
+        fprintf(stderr, "Trailing comma in array!\n");
         return -1;
       }
     }

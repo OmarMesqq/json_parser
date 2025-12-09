@@ -23,7 +23,7 @@ static void print_token_stream(TokenStream* ts);
  * Converts individual characters of `file`
  * into a meaningful stream of JSON tokens.
  *
- * @returns heap allocated pointer to `TokenStream` on success, `NULL` on failure
+ * @returns Heap allocated pointer to `TokenStream` on success, `NULL` on failure
  */
 TokenStream* Tokenize(FILE* file) {
   TOKEN* tokenArray = NULL;
