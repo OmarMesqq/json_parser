@@ -81,7 +81,7 @@ start with `{` and end with `}`.
 
 Objects are also nonterminals described by the production:
 
-$$Object \rightarrow \{ [ Member *(, Member)] \}$$
+$$Object \rightarrow \lbrace [ Member *(, Member)] \rbrace$$
 
 where `Member` is:
 
