@@ -78,10 +78,10 @@ static void run_test(const char* testName, const char* jsonFilePath, const int e
 
   if (actual == expected) {
     printf(GREEN "Test %s on file %s passed.\n" RESET_COLOR, testName, jsonFilePath);
+    fclose(fp);
   } else {
     fprintf(stderr, RED "Test %s on file %s FAILED. Expected %d, got %d!\n" RESET_COLOR, testName, jsonFilePath, expected, actual);
+    fclose(fp);
     exit(-1);
   }
-
-  fclose(fp);
 }

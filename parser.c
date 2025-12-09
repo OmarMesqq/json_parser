@@ -5,31 +5,47 @@
 
 #define MAX_DEPTH 19  // acceptable number of nested arrays and objects
 
-static void free_token_stream(TokenStream* ts);
 static inline char is_simple_value(TOKEN tk);
 static char eat(TOKEN expectedToken, TOKEN* ta);
 static char parse_value(TOKEN* tokenArray);
 static char parse_object(TOKEN* ta);
 static char parse_array(TOKEN* ta);
+static void free_token_stream(TokenStream* ts);
 
 static size_t cursor = 0;  // tracks position in the `TOKEN*` array
-static size_t depth = 0;
+static size_t depth = 0;   // tracks how deep the parser is in the call stack due to its parsing static funcs
 
+/**
+ * Parses and validates a JSON file described by the
+ * token stream `ts` using recursive descent.
+ *
+ * @returns 0 for valid JSONs, -1 otherwise
+ */
 int Parse(TokenStream* ts) {
+  // An empty file is not valid JSON
   if (!ts || !ts->tokenArray || ts->size == 0) {
     fprintf(stderr, "Parse: no tokens in JSON file!\n");
     return -1;
   }
 
   char res = 0;
-
   TOKEN* ta = ts->tokenArray;
-  // "A JSON payload should be an object or array, not a string."
+
+  /**
+   * Although the RFC states that a valid JSON text is of type:
+   * `ws value ws`
+   *
+   * where `ws` is whitespace and value is a simple or complex JSON value,
+   *
+   * the test file `tests/step5/fail1.json` from json.org says
+   * "A JSON payload should be an object or array, not a string.",
+   * so I am outright rejecting edge cases like a JSON file
+   * that's a single boolean, string or 'null'
+   */
   if (is_simple_value(ta[cursor]) && ts->size == 1) {
     res = -1;
     goto on_cleanup;
   }
-
 
   res = parse_value(ta);
   if (res == -1) goto on_cleanup;
@@ -50,7 +66,7 @@ on_cleanup:
 }
 
 /**
- * Checks if the `TOKEN` `tk` is a JSON value that can be represented in a single token i.e:
+ * Returns true if the token `tk` is a JSON value that can be represented in a single token i.e:
  *
  * string || number || 'true || 'false' || 'null'
  */
@@ -58,18 +74,19 @@ static inline char is_simple_value(TOKEN tk) {
   return (tk == STRING) || (tk == NUMBER) || (tk == LITERAL_TRUE) || (tk == LITERAL_FALSE) || (tk == LITERAL_NULL);
 }
 
-static void free_token_stream(TokenStream* ts) {
-  if (!ts) {
-    return;
-  }
-  free(ts->tokenArray);
-  free(ts);
-}
-
+/**
+ * Attempts to consume an `expectedToken`
+ * in the currently parsed token array `ta`.
+ *
+ * This function uses the static variable `cursor` to track
+ * current token in the stream.
+ *
+ * Returns 0 on success, incrementing `cursor`
+ * Returns -1 on failure
+ */
 static char eat(TOKEN expectedToken, TOKEN* ta) {
   if (ta[cursor] == expectedToken) {
-    // printf("eaten!\n");
-    cursor++;  // advance cursor
+    cursor++;
     return 0;
   } else {
     fprintf(stderr, "eat: expected %c, got %c\n", expectedToken, ta[cursor]);
@@ -120,6 +137,7 @@ static char parse_object(TOKEN* ta) {
     fprintf(stderr, "Nesting in JSON file exceeds safe limit (%d). Aborting!\n", MAX_DEPTH);
     return -1;
   }
+
   char res = 0;
   res = eat(BEGIN_OBJECT, ta);
   if (res == -1) return -1;
@@ -145,12 +163,13 @@ static char parse_object(TOKEN* ta) {
       if (res == -1) return -1;
 
       if (ta[cursor] == END_OBJECT) {
-        fprintf(stderr, "trailing comma in object!\n");
+        fprintf(stderr, "Trailing comma in object!\n");
         return -1;
       }
     }
     currentToken = ta[cursor];
   }
+
   res = eat(END_OBJECT, ta);
   if (res == -1) return -1;
   return 0;
@@ -165,6 +184,7 @@ static char parse_array(TOKEN* ta) {
     fprintf(stderr, "Nesting in JSON file exceeds safe limit (%d). Aborting!\n", MAX_DEPTH);
     return -1;
   }
+
   char res = 0;
   res = eat(BEGIN_ARRAY, ta);
   if (res == -1) return -1;
@@ -191,7 +211,16 @@ static char parse_array(TOKEN* ta) {
     }
     currentToken = ta[cursor];
   }
+
   res = eat(END_ARRAY, ta);
   if (res == -1) return -1;
   return 0;
+}
+
+static void free_token_stream(TokenStream* ts) {
+  if (!ts) {
+    return;
+  }
+  free(ts->tokenArray);
+  free(ts);
 }

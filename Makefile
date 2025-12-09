@@ -9,7 +9,7 @@ debug:
 	gcc -g -O0 -Wall -Wextra -Winline main.c lexer.c parser.c -o $(OUTPUT)
 
 test:
-	gcc -g -Wall -Wextra -Winline run_tests.c lexer.c parser.c -o $(TEST_OUTPUT)
+	gcc -g -Wall -Wextra -Winline runner.c lexer.c parser.c -o $(TEST_OUTPUT)
 
 memleak-check: test
 	@valgrind -s --leak-check=full --track-origins=yes --show-leak-kinds=all $(TEST_OUTPUT) 2> $(VALGRIND_LOG)
