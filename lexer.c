@@ -10,6 +10,7 @@
 
 static inline char is_whitespace(int ch);
 static inline char is_control_character(int ch);
+static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx);
 static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx);
 static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx);
 static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx);
@@ -39,11 +40,6 @@ TokenStream* Tokenize(FILE* file) {
 
   int ch = 0;  // current unsigned character read from the JSON file
 
-  // flag for the tokenization status of individual tokens such as strings, numbers, etc
-  char lexifyStatus = 0;
-  // flag marking whether a "primitive" token has been lexed
-  char lexedValue = 0;
-
   while ((ch = fgetc(file)) != EOF) {
     // reallocate if JSON file is bigger than the original INITIAL_MAX_TOKENS
     if (idx == capacity) {
@@ -61,59 +57,18 @@ TokenStream* Tokenize(FILE* file) {
       continue;
     }
 
-    // Numbers = [-] int [frac] [exp]
-    if (isdigit(ch) || ch == '-') {
-      lexifyStatus = lexify_number(ch, file, tokenArray, &idx);
-      if (!lexifyStatus) {
-        goto on_error;
-      }
-      lexedValue = 1;
-    }
-
-    // Strings = quotation-mark *char quotation-mark
-    if (ch == '"') {
-      lexifyStatus = lexify_string(file, tokenArray, &idx);
-      if (!lexifyStatus) {
-        goto on_error;
-      }
-      lexedValue = 1;
-    }
-
-    // Literal 'true'
-    if (ch == 't') {
-      lexifyStatus = lexify_true(file, tokenArray, &idx);
-      if (!lexifyStatus) {
-        goto on_error;
-      }
-      lexedValue = 1;
-    }
-
-    // Literal 'false'
-    if (ch == 'f') {
-      lexifyStatus = lexify_false(file, tokenArray, &idx);
-      if (!lexifyStatus) {
-        goto on_error;
-      }
-      lexedValue = 1;
-    }
-
-    // Literal 'null'
-    if (ch == 'n') {
-      lexifyStatus = lexify_null(file, tokenArray, &idx);
-      if (!lexifyStatus) {
-        goto on_error;
-      }
-      lexedValue = 1;
-    }
-
-    // Walk +1 position after lexifying a "primitive" value
-    if (lexedValue) {
-      lexedValue = 0;
-      ch = fgetc(file);
+    // Handle "primitives": string, number, boolean and null
+    char status = 0;
+    status = lexify_primitive_value(ch, file, tokenArray, &idx);
+    if (status == 0) {
+      goto on_error;
+    } else if (status == 1) {
+      ch = fgetc(file);  // consume next char after lexifying a "primitive" value
       if (ch == EOF) break;
       if (is_whitespace(ch)) continue;
     }
 
+    // Handle structural characters
     switch (ch) {
       case BEGIN_ARRAY:
         tokenArray[idx] = BEGIN_ARRAY;
@@ -165,7 +120,46 @@ on_error:
 }
 
 /**
- * A number in JSON is of type:
+ * Reads `ch` and decides which primitive to lex:
+ * - number
+ * - string
+ * - 'true'
+ * - 'false'
+ * - 'null'
+ *
+ * Returns 0 on error, 1 on success, and -1 if the char didn't correspond to a primitive
+ */
+static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx) {
+  char status = -1;
+
+  // Number
+  if (isdigit(currentChar) || currentChar == '-') {
+    // Assuming lexify_number returns 1 on success, 0 on failure
+    status = lexify_number(currentChar, f, tokenArray, idx);
+  }
+  // String
+  else if (currentChar == '"') {
+    status = lexify_string(f, tokenArray, idx);
+  }
+  // 'true'
+  else if (currentChar == 't') {
+    status = lexify_true(f, tokenArray, idx);
+  }
+  // 'false'
+  else if (currentChar == 'f') {
+    status = lexify_false(f, tokenArray, idx);
+  }
+  // 'null'
+  else if (currentChar == 'n') {
+    status = lexify_null(f, tokenArray, idx);
+  }
+
+  return status;
+}
+
+/**
+ * Attempts to lexify a number.
+ * In JSON, a number follows the schema:
  * `[ minus ] int [ frac ] [ exp ]`, where:
  *
  * - `minus` is: `-` (hex 0x2D)
@@ -180,6 +174,8 @@ on_error:
  * - `e` is: `e/E` (hex 0x65/0x45)
  * - `plus` is: `+` (hex 0x2B)
  * - `zero` is: `0` (hex 0x30)
+ *
+ * @returns 1 on success, 0 on error
  */
 static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx) {
   int ch = 0;
@@ -271,7 +267,8 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* i
 }
 
 /**
- * A string in JSON is of type:
+ * Attempts to lexify a string.
+ * In JSON, a string is of type:
  * `quotation-mark *char quotation-mark`, where:
  *
  * `quotation-mark` is `"` (hex 0x22)
@@ -296,6 +293,8 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* i
  * - the quotation mark (`"`)
  * - control characters (`0x00` through `0x1F`)
  * - backslash (`\`)
+ *
+ * @returns 1 on success, 0 on error
  */
 static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
   if (!f || !tokenArray) return 0;
@@ -352,7 +351,7 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
       fprintf(stderr, "Control characters must be escaped!\n");
       break;
     }
-    
+
     else if (ch == '"') {
       foundStrEnd = 1;
       break;
@@ -369,6 +368,10 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
   }
 }
 
+/**
+ * Attempts to lexify the `true` JSON literal.
+ * @returns 1 on success, 0 on error
+ */
 static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx) {
   int ch = 0;
   if ((ch = fgetc(f)) == 'r' &&
@@ -382,6 +385,10 @@ static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx) {
   return 0;
 }
 
+/**
+ * Attempts to lexify the `false` JSON literal.
+ * @returns 1 on success, 0 on error
+ */
 static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx) {
   int ch = 0;
   if ((ch = fgetc(f)) == 'a' &&
@@ -396,6 +403,10 @@ static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx) {
   return 0;
 }
 
+/**
+ * Attempts to lexify the `null` JSON literal.
+ * @returns 1 on success, 0 on error
+ */
 static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx) {
   int ch = 0;
   if ((ch = fgetc(f)) == 'u' &&
@@ -409,6 +420,12 @@ static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx) {
   return 0;
 }
 
+/**
+ * Peeks at next character in `file`.
+ * Always `unget`s the char, except when `EOF` is found.
+ *
+ * @returns integer representing the read character
+ */
 int peek_next_char(FILE* file) {
   int ch = fgetc(file);
 
