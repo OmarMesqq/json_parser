@@ -79,7 +79,7 @@ static inline char is_simple_value(TOKEN tk) {
  * in the currently parsed token array `ta`.
  *
  * This function uses the static variable `cursor` to track
- * current token in the stream.
+ * the current token in the stream.
  *
  * Returns 0 on success, incrementing `cursor`
  * Returns -1 on failure
@@ -106,8 +106,9 @@ static char parse_value(TOKEN* tokenArray) {
     fprintf(stderr, "Nesting in JSON file exceeds safe limit (%d). Aborting!\n", MAX_DEPTH);
     return -1;
   }
-  TOKEN currentToken = tokenArray[cursor];
+
   char res = 0;
+  TOKEN currentToken = tokenArray[cursor];
 
   if (is_simple_value(currentToken)) {
     res = eat(currentToken, tokenArray);
@@ -121,6 +122,7 @@ static char parse_value(TOKEN* tokenArray) {
     fprintf(stderr, "parse_value: unexpected token: %c\n", currentToken);
     res = -1;
   }
+
   if (depth > 0) depth--;
   return res;
 }
@@ -141,7 +143,6 @@ static char parse_object(TOKEN* ta) {
   char res = 0;
   res = eat(BEGIN_OBJECT, ta);
   if (res == -1) return -1;
-
   TOKEN currentToken = ta[cursor];
 
   while (currentToken != END_OBJECT) {
@@ -188,8 +189,8 @@ static char parse_array(TOKEN* ta) {
   char res = 0;
   res = eat(BEGIN_ARRAY, ta);
   if (res == -1) return -1;
-
   TOKEN currentToken = ta[cursor];
+  
   while (currentToken != END_ARRAY) {
     res = parse_value(ta);
     if (res == -1) return -1;

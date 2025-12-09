@@ -6,9 +6,8 @@
 
 #include "build_config.h"
 
-#define INITIAL_MAX_TOKENS 500
+#define INITIAL_MAX_TOKENS 500  // acceptable number of tokens to initially read from the text file
 
-static void print_token_stream(TokenStream* ts);
 static inline char is_whitespace(int ch);
 static inline char is_control_character(int ch);
 static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx);
@@ -17,21 +16,13 @@ static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx);
 static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx);
 static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx);
 int peek_next_char(FILE* file);
+static void print_token_stream(TokenStream* ts);
 
 /**
- * A valid JSON text is a sequence of tokens such that:
- * `ws value ws`
+ * Converts individual characters of `file`
+ * into a meaningful stream of JSON tokens.
  *
- * where `ws` is ignored whitespace and `value` is one of the below:
- * - string
- * - number
- * - boolean ('true'/'false')
- * - 'null'
- * - object
- * - array
- *
- * This function converts the individual characters of the file
- * into a meaningful token stream for later use by the parser
+ * @returns heap allocated pointer to `TokenStream` on success, `NULL` on failure
  */
 TokenStream* Tokenize(FILE* file) {
   TOKEN* tokenArray = NULL;
@@ -46,11 +37,15 @@ TokenStream* Tokenize(FILE* file) {
   size_t idx = 0;  // index of current `Token` in `tokenArray`
   size_t capacity = INITIAL_MAX_TOKENS;
 
-  int ch = 0;  // current parsed unsigned character from JSON file
+  int ch = 0;  // current unsigned character read from the JSON file
+
+  // flag for the tokenization status of individual tokens such as strings, numbers, etc
   char lexifyStatus = 0;
-  char lexedValue = 0;  // value = str || number || boolean || null || object || array
+  // flag marking whether a "primitive" token has been lexed
+  char lexedValue = 0;
 
   while ((ch = fgetc(file)) != EOF) {
+    // reallocate if JSON file is bigger than the original INITIAL_MAX_TOKENS
     if (idx == capacity) {
       capacity *= 1.5;
       TOKEN* temp = (TOKEN*)realloc(tokenArray, capacity * sizeof(TOKEN));
@@ -189,7 +184,6 @@ on_error:
 static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx) {
   int ch = 0;
 
-  // peek at the char after `currentChar`
   ch = peek_next_char(f);
   if (ch == EOF) {
     if (currentChar == '-') {
@@ -355,7 +349,7 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
     }
 
     else if (is_control_character(ch)) {
-      fprintf(stderr, "control characters must be escaped!\n");
+      fprintf(stderr, "Control characters must be escaped!\n");
       break;
     }
     
@@ -416,8 +410,7 @@ static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx) {
 }
 
 int peek_next_char(FILE* file) {
-  int ch;
-  ch = fgetc(file);
+  int ch = fgetc(file);
 
   if (ch == EOF) {
     return EOF;
@@ -454,7 +447,8 @@ static void print_token_stream(TokenStream* ts) {
   printf("---- START TOKEN STREAM ----\n");
 
   for (size_t idx = 0; idx < ts->size; idx++) {
-    printf("%c (char), %02x (hex), %d (dec)\n", ts->tokenArray[idx], ts->tokenArray[idx], ts->tokenArray[idx]);
+    TOKEN tk = ts->tokenArray[idx];
+    printf("%c (char), %02x (hex), %d (dec)\n", tk, tk, tk);
   }
 
   printf("---- END TOKEN STREAM ----\n");
