@@ -8,7 +8,10 @@ file presents.
 
 Actually, it only raises errors on the latter, showing the first lexical or
 syntactic issue found, adopting a sort of "fail fast" principle as it 
-is a top-down LR lexer/parser duo.
+is a LL(1) parser. In other words, the parser parses the text from **L**eft
+to right, performs **L**eftmost derivation - which means it
+expands the leftmost nonterminal before proceeding - and 
+has a token lookahead of **1**.
 
 This implementation is entirely compliant with the official JSON specification
 ([RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html)).
@@ -64,20 +67,23 @@ followed by either:
 - `uXXXX`: for a character outside Unicode's [Basic Multilingual Plane](https://en.wikipedia.org/wiki/Plane_(Unicode)#Basic_Multilingual_Plane), you must escape `u`, followed by 4 hexadecimal digits that represent it
 
 ## Arrays
-Unordered collection of elements. MUST
+Ordered collection of elements. MUST
 start with `[` and end with `]`.
 
 Arrays are nonterminals described by the production:
-$$ Array \rightarrow [ *(Value) * (, Value) ] $$
+
+$$Array \rightarrow [ \; [ \; Value \; *(\; , \; Value \;) \; ] \; ]$$
 
 
 ## Objects
-Ordered collection of elements. MUST
+Unordered collection of elements. MUST
 start with `{` and end with `}`.
 
 Objects are also nonterminals described by the production:
-$$ Object \rightarrow \{ *(Member *(, Member)) \} $$
+
+$$Object \rightarrow \{ \; [ \; Member \; *(\; , \; Member \;) \; ] \; \}$$
 
 where `Member` is:
-$$ Member \rightarrow String : Value $$
+
+$$Member \rightarrow String : Value$$
 
