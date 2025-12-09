@@ -5,7 +5,7 @@
 
 #define MAX_DEPTH 19  // acceptable number of nested arrays and objects
 
-static void FreeTokenStream(TokenStream* ts);
+static void free_token_stream(TokenStream* ts);
 static inline char is_simple_value(TOKEN tk);
 static char eat(TOKEN expectedToken, TOKEN* ta);
 static char parse_value(TOKEN* tokenArray);
@@ -21,13 +21,15 @@ int Parse(TokenStream* ts) {
     return -1;
   }
 
+  char res = 0;
+
   TOKEN* ta = ts->tokenArray;
   // "A JSON payload should be an object or array, not a string."
   if (is_simple_value(ta[cursor]) && ts->size == 1) {
-    return -1;
+    res = -1;
+    goto on_cleanup;
   }
 
-  char res = 0;
 
   res = parse_value(ta);
   if (res == -1) goto on_cleanup;
@@ -41,6 +43,7 @@ int Parse(TokenStream* ts) {
 
 on_cleanup:
   // printf("final depth: %ld\n", depth);
+  free_token_stream(ts);
   depth = 0;
   cursor = 0;
   return res;
@@ -55,7 +58,7 @@ static inline char is_simple_value(TOKEN tk) {
   return (tk == STRING) || (tk == NUMBER) || (tk == LITERAL_TRUE) || (tk == LITERAL_FALSE) || (tk == LITERAL_NULL);
 }
 
-static void FreeTokenStream(TokenStream* ts) {
+static void free_token_stream(TokenStream* ts) {
   if (!ts) {
     return;
   }
