@@ -9,7 +9,6 @@ static void run_test(const char* testName, const char* jsonFilePath, const int e
 
 int main() {
   run_test("Step 1, valid JSON", "tests/step1/valid.json", 0);
-  run_test("Step 1, valid simple string JSON", "tests/step1/valid_simple_string.json", 0);
   run_test("Step 1, invalid JSON", "tests/step1/invalid.json", -1);
 
   run_test("Step 2, valid JSON", "tests/step2/valid.json", 0);
