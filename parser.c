@@ -9,6 +9,13 @@ static inline char is_json_value(TOKEN tk);
 static char parse_object_member(TOKEN* ta, size_t* pos);
 static char parse_array_element(TOKEN* ta, size_t* pos);
 
+static void eat(TOKEN expectedToken, TOKEN* ta);
+static void parse_value(TOKEN* tokenArray);
+static void parse_object(TOKEN* ta);
+static void parse_array(TOKEN* ta);
+
+static size_t cursor = 0;
+
 /**
  * @returns 0 if JSON is valid, -1 otherwise
  */
@@ -251,4 +258,155 @@ static void FreeTokenStream(TokenStream* ts) {
   }
   free(ts->tokenArray);
   free(ts);
+}
+
+static void eat(TOKEN expectedToken, TOKEN* ta) {
+  if (ta[cursor] == expectedToken) {
+    cursor++;  // advance cursor
+  } else {
+    fprintf(stderr, "eat: expected %c, got %c\n", expectedToken, ta[cursor]);
+    exit(-1);
+  }
+}
+
+/**
+ * `parse_value(tk) {
+ if tk == is_simple_value()
+  eat(SIMPLE_VALUE)
+ elif tk == BEGIN_OBJECT 
+  parse_object()
+elif tk == BEGIN_ARRAY
+  parse_array()
+else error
+ */
+static void parse_value(TOKEN* tokenArray) {
+  TOKEN currentToken = tokenArray[cursor];
+
+  if (is_simple_value(currentToken)) {
+    eat(currentToken, tokenArray);
+  } else if (currentToken == BEGIN_OBJECT) {
+    parse_object(tokenArray);
+  } else if (currentToken == BEGIN_ARRAY) {
+    parse_array(tokenArray);
+  } else {
+    fprintf(stderr, "parse_value: unexpected token: %c\n", currentToken);
+    exit(-1);
+  }
+}
+
+/**
+ * parse_object() {
+  while (tk != END_OBJECT)
+   eat(STRING)
+   eat(NAME_SEP)
+   parse_value(tk)
+if input[OBJECT_END] 
+  break
+elif input[VALUE_SEP] 
+ eat(VALUE_SEP)
+ // implicit continue
+  if input[cursor] == END_OBJECT
+    Error("trailing comma")
+}
+eat(OBJECT_END)
+ */
+static void parse_object(TOKEN* ta) {
+  eat(BEGIN_OBJECT, ta);
+
+  TOKEN currentToken = ta[cursor];
+
+  while (currentToken != END_OBJECT) {
+    eat(STRING, ta);          // key
+    eat(NAME_SEPARATOR, ta);  // :
+    parse_value(ta);          // JSON value
+
+    // object is over
+    if (ta[cursor] == END_OBJECT) {
+      break;
+    }
+
+    // object has more entries
+    if (ta[cursor] == VALUE_SEPARATOR) {
+      eat(VALUE_SEPARATOR, ta);
+
+      if (ta[cursor] == END_OBJECT) {
+        fprintf(stderr, "trailing comma in object!\n");
+        exit(-1);
+      }
+    }
+    currentToken = ta[cursor];
+  }
+  eat(END_OBJECT, ta);
+}
+
+/**
+ * parse_array() {
+  while (tk != END_ARRAY)
+   parse_value(tk)
+   if input[END_ARRAY] 
+    break
+   elif input[VALUE_SEP] 
+    eat(VALUE_SEP)
+       if input[cursor] == END_ARRAY
+         Error("trailing comma")
+}
+eat(END_ARRAY)
+ */
+static void parse_array(TOKEN* ta) {
+  TOKEN currentToken = ta[cursor];
+  while (currentToken != END_ARRAY) {
+    parse_value(ta);
+
+    // array is over
+    if (ta[cursor] == END_ARRAY) {
+      break;
+    }
+    // array has more entries
+    if (ta[cursor] == VALUE_SEPARATOR) {
+      eat(VALUE_SEPARATOR, ta);
+
+      if (ta[cursor] == END_ARRAY) {
+        fprintf(stderr, "trailing comma in array!\n");
+        exit(-1);
+      }
+    }
+  }
+  eat(END_ARRAY, ta);
+}
+
+/**
+ * json_parse() {
+  // edge cases
+  if input[cursor] == is_simple_value && inputSize = 1
+   return ok
+
+
+ parse_value(tk)
+
+if cursor != inputSize
+ error
+
+return ok 
+}
+ */
+int JsonParse(TokenStream* ts) {
+  if (!ts || !ts->tokenArray || ts->size == 0) {
+    fprintf(stderr, "JsonParse: no tokens in JSON file!\n");
+    return -1;
+  }
+
+  // edge cases
+  TOKEN* ta = ts->tokenArray;
+  if (is_json_value(ta[cursor]) && ts->size == 1) {
+    return 0;
+  }
+
+  parse_value(ta);
+
+  if (cursor != ts->size) {
+    fprintf(stderr, "Only a single root value allowed in JSON!\n");
+    return -1;
+  }
+  cursor = 0;
+  return 0;
 }
