@@ -300,7 +300,7 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* i
  * any Unicode character EXCEPT:
  * - the quotation mark (`"`)
  * - control characters (`0x00` through `0x1F`)
- * - backslack (`\`)
+ * - backslash (`\`)
  */
 static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
   if (!f || !tokenArray) return 0;
@@ -330,20 +330,16 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
           ch = fgetc(f);  // consume 'u'
           for (int i = 0; i < 4; i++) {
             ch = fgetc(f);
-            if (ch == EOF) {
-              fprintf(stderr, "Unexpected end of file while reading unicode escape hex digits.\n");
-              return 0;
-            }
 
             if (!isxdigit(ch)) {
-              fprintf(stderr, "Invalid character in unicode escape sequence: '%c' (expected hex digit).\n", ch);
+              fprintf(stderr, "Invalid character in Unicode escape sequence: '%c' (expected hex digit).\n", ch);
               return 0;
             }
           }
 
           continue;
         default:
-          fprintf(stderr, "Unexpected character after escape sequence: %c.\n", ch);
+          fprintf(stderr, "Unexpected character after escape character ('\\'): %c.\n", ch);
           break;
       }
 
@@ -352,6 +348,7 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
         continue;
       } else {
         fprintf(stderr, "Bad escape in string!\n");
+        break;
       }
 
     }
