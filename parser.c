@@ -5,8 +5,8 @@
 
 static void FreeTokenStream(TokenStream* ts);
 static inline char is_simple_value(TOKEN tk);
-static void eat(TOKEN expectedToken, TOKEN* ta);
-static void parse_value(TOKEN* tokenArray);
+static char eat(TOKEN expectedToken, TOKEN* ta);
+static char parse_value(TOKEN* tokenArray);
 static char parse_object(TOKEN* ta);
 static char parse_array(TOKEN* ta);
 
@@ -18,23 +18,24 @@ int Parse(TokenStream* ts) {
     return -1;
   }
 
-  // edge cases
   TOKEN* ta = ts->tokenArray;
+  // "A JSON payload should be an object or array, not a string."
   if (is_simple_value(ta[cursor]) && ts->size == 1) {
-    return 0;
+    return -1;
   }
 
-  parse_value(ta);
+  char res = 0;
+
+  res = parse_value(ta);
 
   if (cursor != ts->size) {
     fprintf(stderr, "Parse: only a single root value allowed in JSON!\n");
     // fprintf(stderr, "cursor: %ld\n", cursor);
     // fprintf(stderr, "ts->size: %ld\n", ts->size);
-    cursor = 0;
-    return -1;
+    res = -1;
   }
   cursor = 0;
-  return 0;
+  return res;
 }
 
 /**
@@ -54,13 +55,14 @@ static void FreeTokenStream(TokenStream* ts) {
   free(ts);
 }
 
-static void eat(TOKEN expectedToken, TOKEN* ta) {
+static char eat(TOKEN expectedToken, TOKEN* ta) {
   if (ta[cursor] == expectedToken) {
     // printf("eaten!\n");
     cursor++;  // advance cursor
+    return 0;
   } else {
     fprintf(stderr, "eat: expected %c, got %c\n", expectedToken, ta[cursor]);
-    exit(-1);
+    return -1;
   }
 }
 
@@ -71,19 +73,21 @@ static void eat(TOKEN expectedToken, TOKEN* ta) {
  *
  * where `Value`, `Object`, and `Array` are nonterminals.
  */
-static void parse_value(TOKEN* tokenArray) {
+static char parse_value(TOKEN* tokenArray) {
   TOKEN currentToken = tokenArray[cursor];
+  char res = 0;
 
   if (is_simple_value(currentToken)) {
-    eat(currentToken, tokenArray);
+    res = eat(currentToken, tokenArray);
   } else if (currentToken == BEGIN_OBJECT) {
-    parse_object(tokenArray);
+    res = parse_object(tokenArray);
   } else if (currentToken == BEGIN_ARRAY) {
-    parse_array(tokenArray);
+    res = parse_array(tokenArray);
   } else {
     fprintf(stderr, "parse_value: unexpected token: %c\n", currentToken);
-    exit(-1);
+    res = -1;
   }
+  return res;
 }
 
 /**
@@ -94,14 +98,19 @@ static void parse_value(TOKEN* tokenArray) {
  * `STRING NAME_SEPARATOR VALUE`
  */
 static char parse_object(TOKEN* ta) {
-  eat(BEGIN_OBJECT, ta);
+  char res = 0;
+  res = eat(BEGIN_OBJECT, ta);
+  if (res == -1) return -1;
 
   TOKEN currentToken = ta[cursor];
 
   while (currentToken != END_OBJECT) {
-    eat(STRING, ta);          // key
-    eat(NAME_SEPARATOR, ta);  // :
-    parse_value(ta);          // JSON value
+    res = eat(STRING, ta);  // key
+    if (res == -1) return -1;
+    res = eat(NAME_SEPARATOR, ta);  // :
+    if (res == -1) return -1;
+    res = parse_value(ta);  // JSON value
+    if (res == -1) return -1;
 
     // object is over
     if (ta[cursor] == END_OBJECT) {
@@ -110,7 +119,8 @@ static char parse_object(TOKEN* ta) {
 
     // object has more entries
     if (ta[cursor] == VALUE_SEPARATOR) {
-      eat(VALUE_SEPARATOR, ta);
+      res = eat(VALUE_SEPARATOR, ta);
+      if (res == -1) return -1;
 
       if (ta[cursor] == END_OBJECT) {
         fprintf(stderr, "trailing comma in object!\n");
@@ -119,7 +129,8 @@ static char parse_object(TOKEN* ta) {
     }
     currentToken = ta[cursor];
   }
-  eat(END_OBJECT, ta);
+  res = eat(END_OBJECT, ta);
+  if (res == -1) return -1;
   return 0;
 }
 
@@ -128,19 +139,24 @@ static char parse_object(TOKEN* ta) {
  * `BEGIN_ARRAY *(VALUE *(VALUE_SEPARATOR VALUE)) END_ARRAY`
  */
 static char parse_array(TOKEN* ta) {
-  eat(BEGIN_ARRAY, ta);
+  char res = 0;
+  res = eat(BEGIN_ARRAY, ta);
+  if (res == -1) return -1;
 
   TOKEN currentToken = ta[cursor];
   while (currentToken != END_ARRAY) {
-    parse_value(ta);
+    res = parse_value(ta);
+    if (res == -1) return -1;
 
     // array is over
     if (ta[cursor] == END_ARRAY) {
       break;
     }
+
     // array has more entries
     if (ta[cursor] == VALUE_SEPARATOR) {
-      eat(VALUE_SEPARATOR, ta);
+      res = eat(VALUE_SEPARATOR, ta);
+      if (res == -1) return -1;
 
       if (ta[cursor] == END_ARRAY) {
         fprintf(stderr, "trailing comma in array!\n");
@@ -149,6 +165,7 @@ static char parse_array(TOKEN* ta) {
     }
     currentToken = ta[cursor];
   }
-  eat(END_ARRAY, ta);
+  res = eat(END_ARRAY, ta);
+  if (res == -1) return -1;
   return 0;
 }
