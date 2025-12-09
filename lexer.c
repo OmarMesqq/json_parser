@@ -370,7 +370,7 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
     (*idx)++;
     return 1;
   } else {
-    fprintf(stderr, "string was not terminated! Aborting.\n");
+    fprintf(stderr, "String was not terminated! Aborting.\n");
     return 0;
   }
 }

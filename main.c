@@ -17,14 +17,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  // tokenization
   TokenStream* ts = Tokenize(fp);
-  if (ts == NULL) {
-    // fprintf(stderr, "tokenizer found errors during tokenization!\n");
-    return -1;
-  }
-
-  // parsing
   int parsingResult = Parse(ts);
 
   if (parsingResult == 0) {
