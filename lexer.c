@@ -9,7 +9,8 @@
 #define INITIAL_MAX_TOKENS 500
 
 static void print_token_stream(TokenStream* ts);
-static char is_whitespace(int ch);
+static inline char is_whitespace(int ch);
+static inline char is_control_character(int ch);
 static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx);
 static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx);
 static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx);
@@ -353,6 +354,11 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
 
     }
 
+    else if (is_control_character(ch)) {
+      fprintf(stderr, "control characters must be escaped!\n");
+      break;
+    }
+    
     else if (ch == '"') {
       foundStrEnd = 1;
       break;
@@ -428,8 +434,15 @@ int peek_next_char(FILE* file) {
  * - '\n' line feed/newline
  * - '\r' carriage return
  */
-static char is_whitespace(int ch) {
+static inline char is_whitespace(int ch) {
   return (ch == 0x20) || (ch == 0x09) || (ch == 0x0A) || (ch == 0x0D);
+}
+
+/**
+ * Returns true (1) if `ch` is a control character: `0x00` through `0x1F`
+ */
+static inline char is_control_character(int ch) {
+  return ((ch > 0) && (ch <= 0x1F));
 }
 
 static void print_token_stream(TokenStream* ts) {
