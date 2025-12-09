@@ -72,7 +72,7 @@ start with `[` and end with `]`.
 
 Arrays are nonterminals described by the production:
 
-$$Array \rightarrow [ \; [ \; Value \; *(\; , \; Value \;) \; ] \; ]$$
+$$Array \rightarrow [ [ Value *(, Value) ] ]$$
 
 
 ## Objects
@@ -81,7 +81,7 @@ start with `{` and end with `}`.
 
 Objects are also nonterminals described by the production:
 
-$$Object \rightarrow \{ \; [ \; Member \; *(\; , \; Member \;) \; ] \; \}$$
+$$Object \rightarrow \{ [ Member *(, Member)] \}$$
 
 where `Member` is:
 
