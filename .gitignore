@@ -3,3 +3,4 @@ json_parser_tests
 *.dSYM
 .lldbinit
 .gdbinit
+.DS_Store

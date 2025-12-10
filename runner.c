@@ -61,7 +61,7 @@ int main() {
   run_test("Step 5 fail32", "tests/step5/fail32.json", -1);
   run_test("Step 5 fail33", "tests/step5/fail33.json", -1);
 
-  run_test("Custom step", "tests/more_than_one_root.json", -1);
+  run_test("Custom step", "tests/custom/more_than_one_root.json", -1);
 
   return 0;
 }
