@@ -1,4 +1,5 @@
 VALGRIND_LOG := /tmp/json_parser_valgrind.log
+CACHEGRIND_LOG := /tmp/cachegrind.out
 OUTPUT := /tmp/json_parser
 TEST_OUTPUT := /tmp/json_parser_tests
 
@@ -18,5 +19,10 @@ memleak-check: test
 	echo "✅ No leaks or errors detected." || \
 	(echo "❌ Memory/resource leaks or errors found!"; cat $(VALGRIND_LOG); exit 1)
 
+
+cachegrind: release
+	valgrind --tool=cachegrind --cachegrind-out-file=$(CACHEGRIND_LOG) /tmp/json_parser ./tests/custom/2_million_ints_4M.json
+	cg_annotate $(CACHEGRIND_LOG)
+
 clean:
-	rm -rf $(VALGRIND_LOG) $(OUTPUT) $(TEST_OUTPUT)
+	rm -rf $(VALGRIND_LOG) $(OUTPUT) $(TEST_OUTPUT) $(CACHEGRIND_LOG)
