@@ -66,6 +66,10 @@ TokenStream* Tokenize(FILE* file) {
       ch = fgetc(file);  // consume next char after lexifying a "primitive" value
       if (ch == EOF) break;
       if (is_whitespace(ch)) continue;
+      
+      // Put char back and get it on next iteration, triggering realloc if needed
+      ungetc(ch, file);
+      continue;
     }
 
     // Handle structural characters
