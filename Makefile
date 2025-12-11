@@ -7,7 +7,7 @@ release:
 	gcc -O3 -Wall -Wextra -Winline main.c lexer.c parser.c -o $(OUTPUT)
 
 debug:
-	gcc -g -O0 -Wall -Wextra -Winline main.c lexer.c parser.c -o $(OUTPUT)
+	gcc -g -O0 -Wall -Wextra -Winline -fsanitize=address main.c lexer.c parser.c -o $(OUTPUT)
 
 test:
 	gcc -g -Wall -Wextra -Winline runner.c lexer.c parser.c -o $(TEST_OUTPUT)
