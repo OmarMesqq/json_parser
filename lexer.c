@@ -10,12 +10,12 @@
 
 static inline char is_whitespace(int ch);
 static inline char is_control_character(int ch);
-static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx);
-static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx);
-static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx);
-static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx);
-static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx);
-static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx);
+static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
+static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
+static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
+static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
+static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
+static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
 int peek_next_char(FILE* file);
 static void print_token_stream(TokenStream* ts);
 
@@ -35,14 +35,14 @@ TokenStream* Tokenize(FILE* file) {
     goto on_error;
   }
 
-  size_t idx = 0;  // index of current `Token` in `tokenArray`
+  size_t tokenBufIdx = 0;  // index of current `Token` in `tokenArray`
   size_t capacity = INITIAL_MAX_TOKENS;
 
   int ch = 0;  // current unsigned character read from the JSON file
 
   while ((ch = fgetc(file)) != EOF) {
     // reallocate if JSON file is bigger than the original INITIAL_MAX_TOKENS
-    if (idx == capacity) {
+    if (tokenBufIdx == capacity) {
       capacity *= 1.5;
       TOKEN* temp = (TOKEN*)realloc(tokenArray, capacity * sizeof(TOKEN));
       if (!temp) {
@@ -59,7 +59,7 @@ TokenStream* Tokenize(FILE* file) {
 
     // Handle "primitives": string, number, boolean and null
     char status = 0;
-    status = lexify_primitive_value(ch, file, tokenArray, &idx);
+    status = lexify_primitive_value(ch, file, tokenArray, &tokenBufIdx);
     if (status == 0) {
       goto on_error;
     } else if (status == 1) {
@@ -75,33 +75,33 @@ TokenStream* Tokenize(FILE* file) {
     // Handle structural characters
     switch (ch) {
       case BEGIN_ARRAY:
-        tokenArray[idx] = BEGIN_ARRAY;
+        tokenArray[tokenBufIdx] = BEGIN_ARRAY;
         break;
       case BEGIN_OBJECT:
-        tokenArray[idx] = BEGIN_OBJECT;
+        tokenArray[tokenBufIdx] = BEGIN_OBJECT;
         break;
       case END_ARRAY:
-        tokenArray[idx] = END_ARRAY;
+        tokenArray[tokenBufIdx] = END_ARRAY;
         break;
       case END_OBJECT:
-        tokenArray[idx] = END_OBJECT;
+        tokenArray[tokenBufIdx] = END_OBJECT;
         break;
       case NAME_SEPARATOR:
-        tokenArray[idx] = NAME_SEPARATOR;
+        tokenArray[tokenBufIdx] = NAME_SEPARATOR;
         break;
       case VALUE_SEPARATOR:
-        tokenArray[idx] = VALUE_SEPARATOR;
+        tokenArray[tokenBufIdx] = VALUE_SEPARATOR;
         break;
       default:
         fprintf(stderr, "tokenize: unexpected token: %c (char), %d (decimal)\n", ch, ch);
         goto on_error;
     }
 
-    idx++;
+    tokenBufIdx++;
   }
 
   // avoid reading heap I don't own even though malloc(0) is valid (?) thanks valgrind
-  if (idx == 0) goto on_error;
+  if (tokenBufIdx == 0) goto on_error;
 
   ts = (TokenStream*)malloc(sizeof(TokenStream));
   if (!ts) {
@@ -109,7 +109,7 @@ TokenStream* Tokenize(FILE* file) {
     goto on_error;
   }
 
-  ts->size = idx;
+  ts->size = tokenBufIdx;
   ts->tokenArray = tokenArray;
 
 #ifdef DEBUG
@@ -133,29 +133,29 @@ on_error:
  *
  * Returns 0 on error, 1 on success, and -1 if the char didn't correspond to a primitive
  */
-static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx) {
+static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
   char status = -1;
 
   // Number
   if (isdigit(currentChar) || currentChar == '-') {
     // Assuming lexify_number returns 1 on success, 0 on failure
-    status = lexify_number(currentChar, f, tokenArray, idx);
+    status = lexify_number(currentChar, f, tokenArray, tokenBufIdx);
   }
   // String
   else if (currentChar == '"') {
-    status = lexify_string(f, tokenArray, idx);
+    status = lexify_string(f, tokenArray, tokenBufIdx);
   }
   // 'true'
   else if (currentChar == 't') {
-    status = lexify_true(f, tokenArray, idx);
+    status = lexify_true(f, tokenArray, tokenBufIdx);
   }
   // 'false'
   else if (currentChar == 'f') {
-    status = lexify_false(f, tokenArray, idx);
+    status = lexify_false(f, tokenArray, tokenBufIdx);
   }
   // 'null'
   else if (currentChar == 'n') {
-    status = lexify_null(f, tokenArray, idx);
+    status = lexify_null(f, tokenArray, tokenBufIdx);
   }
 
   return status;
@@ -181,7 +181,7 @@ static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, 
  *
  * @returns 1 on success, 0 on error
  */
-static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* idx) {
+static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
   int ch = 0;
 
   ch = peek_next_char(f);
@@ -265,8 +265,8 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* i
     return 0;
   }
 
-  tokenArray[*idx] = NUMBER;
-  (*idx)++;
+  tokenArray[*tokenBufIdx] = NUMBER;
+  (*tokenBufIdx)++;
   return 1;
 }
 
@@ -300,7 +300,7 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* i
  *
  * @returns 1 on success, 0 on error
  */
-static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
+static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
   if (!f || !tokenArray) return 0;
 
   int ch = 0;
@@ -363,8 +363,8 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
   }
 
   if (foundStrEnd) {
-    tokenArray[*idx] = STRING;
-    (*idx)++;
+    tokenArray[*tokenBufIdx] = STRING;
+    (*tokenBufIdx)++;
     return 1;
   } else {
     fprintf(stderr, "String was not terminated! Aborting.\n");
@@ -376,13 +376,13 @@ static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* idx) {
  * Attempts to lexify the `true` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx) {
+static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
   int ch = 0;
   if ((ch = fgetc(f)) == 'r' &&
       (ch = fgetc(f)) == 'u' &&
       (ch = fgetc(f)) == 'e') {
-    tokenArray[*idx] = LITERAL_TRUE;
-    (*idx)++;
+    tokenArray[*tokenBufIdx] = LITERAL_TRUE;
+    (*tokenBufIdx)++;
     return 1;
   }
   fprintf(stderr, "expected 'true' literal. Was malformed.\n");
@@ -393,14 +393,14 @@ static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* idx) {
  * Attempts to lexify the `false` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx) {
+static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
   int ch = 0;
   if ((ch = fgetc(f)) == 'a' &&
       (ch = fgetc(f)) == 'l' &&
       (ch = fgetc(f)) == 's' &&
       (ch = fgetc(f)) == 'e') {
-    tokenArray[*idx] = LITERAL_FALSE;
-    (*idx)++;
+    tokenArray[*tokenBufIdx] = LITERAL_FALSE;
+    (*tokenBufIdx)++;
     return 1;
   }
   fprintf(stderr, "expected 'false' literal. Was malformed.\n");
@@ -411,13 +411,13 @@ static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* idx) {
  * Attempts to lexify the `null` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* idx) {
+static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
   int ch = 0;
   if ((ch = fgetc(f)) == 'u' &&
       (ch = fgetc(f)) == 'l' &&
       (ch = fgetc(f)) == 'l') {
-    tokenArray[*idx] = LITERAL_NULL;
-    (*idx)++;
+    tokenArray[*tokenBufIdx] = LITERAL_NULL;
+    (*tokenBufIdx)++;
     return 1;
   }
   fprintf(stderr, "expected 'null' literal. Was malformed.\n");
