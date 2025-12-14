@@ -8,16 +8,15 @@
 
 #define INITIAL_MAX_TOKENS 500  // acceptable number of tokens to initially read from the text file
 
+static char* read_file(FILE* f);
 static inline char is_whitespace(int ch);
 static inline char is_control_character(int ch);
-static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
-static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
-static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
-static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
-static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
-static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx);
-int peek_next_char(FILE* file);
-static void print_token_stream(TokenStream* ts);
+static char lexify_primitive_value(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static char lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static char lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static char lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static char lexify_false(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static char lexify_null(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
 
 /**
  * Converts individual characters of `file`
@@ -35,18 +34,25 @@ TokenStream* Tokenize(FILE* file) {
     goto on_error;
   }
 
-  size_t tokenBufIdx = 0;  // index of current `Token` in `tokenArray`
+  char* buf = read_file(file);
+  if (!buf) {
+    fprintf(stderr, "tokenize: failed to allocate buffer for JSON file!\n");
+    goto on_error;
+  }
+
+  size_t buf_idx = 0;  // Tracks position in char* buf
+  size_t tok_idx = 0;  // Tracks position in TOKEN* tokenArray
   size_t capacity = INITIAL_MAX_TOKENS;
 
-  int ch = 0;  // current unsigned character read from the JSON file
-
-  while ((ch = fgetc(file)) != EOF) {
-    // reallocate if JSON file is bigger than the original INITIAL_MAX_TOKENS
-    if (tokenBufIdx == capacity) {
+  // Iterate based on the BUFFER index
+  for (int ch = buf[buf_idx]; ch != '\0'; ch = buf[buf_idx]) {
+    // Resize based on the TOKEN index
+    if (tok_idx >= capacity) {
       capacity *= 1.5;
       TOKEN* temp = (TOKEN*)realloc(tokenArray, capacity * sizeof(TOKEN));
       if (!temp) {
         fprintf(stderr, "tokenize: failed to realloc TOKEN* array!\n");
+        free(buf);
         goto on_error;
       }
       tokenArray = temp;
@@ -54,54 +60,52 @@ TokenStream* Tokenize(FILE* file) {
 
     // Ignore whitespace
     if (is_whitespace(ch)) {
+      buf_idx++;  // Advance buffer only
       continue;
     }
 
     // Handle "primitives": string, number, boolean and null
-    char status = 0;
-    status = lexify_primitive_value(ch, file, tokenArray, &tokenBufIdx);
+    char status = lexify_primitive_value(ch, buf, &buf_idx, tokenArray, &tok_idx);
     if (status == 0) {
       goto on_error;
     } else if (status == 1) {
-      ch = fgetc(file);  // consume next char after lexifying a "primitive" value
-      if (ch == EOF) break;
-      if (is_whitespace(ch)) continue;
-      
-      // Put char back and get it on next iteration, triggering realloc if needed
-      ungetc(ch, file);
+      // If lexify primitive returned 1, then a primitive was lexed.
+      // Go to iteration to eventually trigger realloc
+      // Otherwise, it will fall-through into the structural character switch below
+      // without risk of heap overflow
       continue;
     }
 
     // Handle structural characters
     switch (ch) {
       case BEGIN_ARRAY:
-        tokenArray[tokenBufIdx] = BEGIN_ARRAY;
+        tokenArray[tok_idx++] = BEGIN_ARRAY;
         break;
       case BEGIN_OBJECT:
-        tokenArray[tokenBufIdx] = BEGIN_OBJECT;
+        tokenArray[tok_idx++] = BEGIN_OBJECT;
         break;
       case END_ARRAY:
-        tokenArray[tokenBufIdx] = END_ARRAY;
+        tokenArray[tok_idx++] = END_ARRAY;
         break;
       case END_OBJECT:
-        tokenArray[tokenBufIdx] = END_OBJECT;
+        tokenArray[tok_idx++] = END_OBJECT;
         break;
       case NAME_SEPARATOR:
-        tokenArray[tokenBufIdx] = NAME_SEPARATOR;
+        tokenArray[tok_idx++] = NAME_SEPARATOR;
         break;
       case VALUE_SEPARATOR:
-        tokenArray[tokenBufIdx] = VALUE_SEPARATOR;
+        tokenArray[tok_idx++] = VALUE_SEPARATOR;
         break;
       default:
         fprintf(stderr, "tokenize: unexpected token: %c (char), %d (decimal)\n", ch, ch);
         goto on_error;
     }
 
-    tokenBufIdx++;
+    buf_idx++;  // Advance buffer after consuming structural char
   }
 
   // avoid reading heap I don't own even though malloc(0) is valid (?) thanks valgrind
-  if (tokenBufIdx == 0) goto on_error;
+  if (tok_idx == 0) goto on_error;
 
   ts = (TokenStream*)malloc(sizeof(TokenStream));
   if (!ts) {
@@ -109,17 +113,17 @@ TokenStream* Tokenize(FILE* file) {
     goto on_error;
   }
 
-  ts->size = tokenBufIdx;
+  ts->size = tok_idx;
   ts->tokenArray = tokenArray;
 
-#ifdef DEBUG
-  print_token_stream(ts);
-#endif
+  free(buf);
 
   return ts;
+
 on_error:
   if (tokenArray) free(tokenArray);
   if (ts) free(ts);
+  if (buf) free(buf);
   return NULL;
 }
 
@@ -133,29 +137,19 @@ on_error:
  *
  * Returns 0 on error, 1 on success, and -1 if the char didn't correspond to a primitive
  */
-static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
+static char lexify_primitive_value(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
   char status = -1;
 
-  // Number
   if (isdigit(currentChar) || currentChar == '-') {
-    // Assuming lexify_number returns 1 on success, 0 on failure
-    status = lexify_number(currentChar, f, tokenArray, tokenBufIdx);
-  }
-  // String
-  else if (currentChar == '"') {
-    status = lexify_string(f, tokenArray, tokenBufIdx);
-  }
-  // 'true'
-  else if (currentChar == 't') {
-    status = lexify_true(f, tokenArray, tokenBufIdx);
-  }
-  // 'false'
-  else if (currentChar == 'f') {
-    status = lexify_false(f, tokenArray, tokenBufIdx);
-  }
-  // 'null'
-  else if (currentChar == 'n') {
-    status = lexify_null(f, tokenArray, tokenBufIdx);
+    status = lexify_number(currentChar, buf, buf_idx, tokenArray, tok_idx);
+  } else if (currentChar == '"') {
+    status = lexify_string(buf, buf_idx, tokenArray, tok_idx);
+  } else if (currentChar == 't') {
+    status = lexify_true(buf, buf_idx, tokenArray, tok_idx);
+  } else if (currentChar == 'f') {
+    status = lexify_false(buf, buf_idx, tokenArray, tok_idx);
+  } else if (currentChar == 'n') {
+    status = lexify_null(buf, buf_idx, tokenArray, tok_idx);
   }
 
   return status;
@@ -181,20 +175,36 @@ static char lexify_primitive_value(int currentChar, FILE* f, TOKEN* tokenArray, 
  *
  * @returns 1 on success, 0 on error
  */
-static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
-  int ch = 0;
+static char lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+  int ch = buf[*buf_idx + 1];
 
-  ch = peek_next_char(f);
-  if (ch == EOF) {
-    if (currentChar == '-') {
-      fprintf(stderr, "Trailing '-' at end of file.\n");
-      return 0;
-    }
+  // 1. Check for trailing minus at end of file
+  if (ch == '\0' && currentChar == '-') {
+    fprintf(stderr, "Trailing '-' at end of file.\n");
+    return 0;
   }
 
-  if (currentChar == '0' && isdigit(ch)) {
-    fprintf(stderr, "No leading zeroes allowed in a number.\n");
-    return 0;
+  // 2. Handle leading minus explicitly
+  if (currentChar == '-') {
+    (*buf_idx)++;        // Consume the minus
+    ch = buf[*buf_idx];  // Look at the digit following it
+
+    if (!isdigit(ch)) {
+      fprintf(stderr, "Minus sign must be followed by a digit.\n");
+      return 0;
+    }
+
+    // Check for leading zero rule for negative numbers: e.g. -01 is invalid
+    if (ch == '0' && isdigit(buf[*buf_idx + 1])) {
+      fprintf(stderr, "No leading zeroes allowed in a number.\n");
+      return 0;
+    }
+  } else {
+    // No minus, currentChar is a digit. Check leading zero rule: e.g. 01 is invalid
+    if (currentChar == '0' && isdigit(buf[*buf_idx + 1])) {
+      fprintf(stderr, "No leading zeroes allowed in a number.\n");
+      return 0;
+    }
   }
 
   char foundDecimalPoint = 0;
@@ -204,8 +214,10 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* t
   char isScanningExp = 0;
   int previousCh = 0;
 
-  ch = fgetc(f);
-  while (ch != EOF) {
+  // Start loop at CURRENT buffer position (already past the leading minus if there was one)
+  ch = buf[*buf_idx];
+
+  while (ch != '\0') {
     // probable start of number's `frac`, lex the following chars as part of the number's fractional part
     if (ch == '.') {
       if (!foundDecimalPoint) {
@@ -242,17 +254,13 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* t
       if (foundExpStart && !expHasNumbers) {
         expHasNumbers = 1;  // there are numbers after the exponent in XeYZ
       }
-
     } else {
-      if (!is_whitespace(ch)) {
-        // end of the number: put back read char and stop lexing it
-        ungetc(ch, f);
-        break;
-      }
+      break;
     }
 
     previousCh = ch;
-    ch = fgetc(f);
+    (*buf_idx)++;
+    ch = buf[*buf_idx];
   }
 
   if (foundDecimalPoint && !fracPartHasNumbers) {
@@ -265,8 +273,8 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* t
     return 0;
   }
 
-  tokenArray[*tokenBufIdx] = NUMBER;
-  (*tokenBufIdx)++;
+  tokenArray[*tok_idx] = NUMBER;
+  (*tok_idx)++;
   return 1;
 }
 
@@ -300,92 +308,104 @@ static char lexify_number(int currentChar, FILE* f, TOKEN* tokenArray, size_t* t
  *
  * @returns 1 on success, 0 on error
  */
-static char lexify_string(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
-  if (!f || !tokenArray) return 0;
-
-  int ch = 0;
+static char lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+  int ch = buf[*buf_idx];
   char foundStrEnd = 0;
 
-  while ((ch = fgetc(f)) != EOF) {
-    // Escapes
+  // Consume opening quote
+  (*buf_idx)++;
+  ch = buf[*buf_idx];
+
+  while (ch != '\0') {
     if (ch == '\\') {
-      ch = peek_next_char(f);
-      char isEscapeOk = 0;
+      // Peek at the next char (the escaped char)
+      char escaped = buf[*buf_idx + 1];
 
-      switch (ch) {
-        case '"':   // quotation mark
-        case '\\':  // reverse solidus
-        case '/':   // solidus
-        case 'b':   // backspace
-        case 'f':   // form feed
-        case 'n':   // line feed
-        case 'r':   // carriage return
-        case 't':   // tab
-          isEscapeOk = 1;
-          break;
-        case 'u':  // uXXXX
-          // expect 4 hexadecimal digits for Unicode
-          ch = fgetc(f);  // consume 'u'
-          for (int i = 0; i < 4; i++) {
-            ch = fgetc(f);
+      if (escaped == 'u') {
+        // Handle Unicode: \uXXXX
+        // We need to consume: \ (1) + u (1) + 4 digits = 6 chars total
 
-            if (!isxdigit(ch)) {
-              fprintf(stderr, "Invalid character in Unicode escape sequence: '%c' (expected hex digit).\n", ch);
-              return 0;
-            }
+        // Verify we have enough chars ahead:
+        // we need buf_idx + 1 ('u') + 4 digits.
+
+        size_t temp_idx = *buf_idx + 2;  // Start at first hex digit
+        for (int i = 0; i < 4; i++) {
+          if (!isxdigit(buf[temp_idx])) {
+            fprintf(stderr, "Invalid unicode escape hex digit: %c\n", buf[temp_idx]);
+            return 0;
           }
+          temp_idx++;
+        }
 
-          continue;
-        default:
-          fprintf(stderr, "Unexpected character after escape character ('\\'): %c.\n", ch);
-          break;
-      }
-
-      if (isEscapeOk) {
-        fgetc(f);  // consume it
+        // Advance main buffer index by 6
+        (*buf_idx) += 6;
+        ch = buf[*buf_idx];
         continue;
       } else {
-        fprintf(stderr, "Bad escape in string!\n");
-        break;
+        // Simple escapes: \", \n, \\, etc.
+        char isEscapeOk = 0;
+        switch (escaped) {
+          case '"':
+          case '\\':
+          case '/':
+          case 'b':
+          case 'f':
+          case 'n':
+          case 'r':
+          case 't':
+            isEscapeOk = 1;
+            break;
+          default:
+            break;
+        }
+
+        if (isEscapeOk) {
+          (*buf_idx) += 2;  // Consume '\' and the escaped char
+          ch = buf[*buf_idx];
+          continue;
+        } else {
+          fprintf(stderr, "Bad escape character: %c\n", escaped);
+          return 0;
+        }
       }
-
-    }
-
-    else if (is_control_character(ch)) {
-      fprintf(stderr, "Control characters must be escaped!\n");
-      break;
-    }
-
-    else if (ch == '"') {
+    } else if (is_control_character(ch)) {
+      fprintf(stderr, "Control characters not allowed in string (found %d)\n", ch);
+      return 0;
+    } else if (ch == '"') {
       foundStrEnd = 1;
+      (*buf_idx)++;  // Consume closing quote
       break;
     }
+
+    // Normal character
+    (*buf_idx)++;
+    ch = buf[*buf_idx];
   }
 
   if (foundStrEnd) {
-    tokenArray[*tokenBufIdx] = STRING;
-    (*tokenBufIdx)++;
+    tokenArray[*tok_idx] = STRING;
+    (*tok_idx)++;
     return 1;
-  } else {
-    fprintf(stderr, "String was not terminated! Aborting.\n");
-    return 0;
   }
+
+  fprintf(stderr, "String was not terminated!\n");
+  return 0;
 }
 
 /**
  * Attempts to lexify the `true` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
-  int ch = 0;
-  if ((ch = fgetc(f)) == 'r' &&
-      (ch = fgetc(f)) == 'u' &&
-      (ch = fgetc(f)) == 'e') {
-    tokenArray[*tokenBufIdx] = LITERAL_TRUE;
-    (*tokenBufIdx)++;
+static char lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+  if (buf[*buf_idx] == 't' &&
+      buf[*buf_idx + 1] == 'r' &&
+      buf[*buf_idx + 2] == 'u' &&
+      buf[*buf_idx + 3] == 'e') {
+    tokenArray[*tok_idx] = LITERAL_TRUE;
+    (*tok_idx)++;
+    (*buf_idx) += 4;
     return 1;
   }
-  fprintf(stderr, "expected 'true' literal. Was malformed.\n");
   return 0;
 }
 
@@ -393,17 +413,17 @@ static char lexify_true(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
  * Attempts to lexify the `false` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
-  int ch = 0;
-  if ((ch = fgetc(f)) == 'a' &&
-      (ch = fgetc(f)) == 'l' &&
-      (ch = fgetc(f)) == 's' &&
-      (ch = fgetc(f)) == 'e') {
-    tokenArray[*tokenBufIdx] = LITERAL_FALSE;
-    (*tokenBufIdx)++;
+static char lexify_false(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+  if (buf[*buf_idx] == 'f' &&
+      buf[*buf_idx + 1] == 'a' &&
+      buf[*buf_idx + 2] == 'l' &&
+      buf[*buf_idx + 3] == 's' &&
+      buf[*buf_idx + 4] == 'e') {
+    tokenArray[*tok_idx] = LITERAL_FALSE;
+    (*tok_idx)++;
+    (*buf_idx) += 5;
     return 1;
   }
-  fprintf(stderr, "expected 'false' literal. Was malformed.\n");
   return 0;
 }
 
@@ -411,34 +431,17 @@ static char lexify_false(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
  * Attempts to lexify the `null` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_null(FILE* f, TOKEN* tokenArray, size_t* tokenBufIdx) {
-  int ch = 0;
-  if ((ch = fgetc(f)) == 'u' &&
-      (ch = fgetc(f)) == 'l' &&
-      (ch = fgetc(f)) == 'l') {
-    tokenArray[*tokenBufIdx] = LITERAL_NULL;
-    (*tokenBufIdx)++;
+static char lexify_null(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+  if (buf[*buf_idx] == 'n' &&
+      buf[*buf_idx + 1] == 'u' &&
+      buf[*buf_idx + 2] == 'l' &&
+      buf[*buf_idx + 3] == 'l') {
+    tokenArray[*tok_idx] = LITERAL_NULL;
+    (*tok_idx)++;
+    (*buf_idx) += 4;
     return 1;
   }
-  fprintf(stderr, "expected 'null' literal. Was malformed.\n");
   return 0;
-}
-
-/**
- * Peeks at next character in `file`.
- * Always `unget`s the char, except when `EOF` is found.
- *
- * @returns integer representing the read character
- */
-int peek_next_char(FILE* file) {
-  int ch = fgetc(file);
-
-  if (ch == EOF) {
-    return EOF;
-  }
-
-  ungetc(ch, file);  // put char back
-  return ch;
 }
 
 /**
@@ -459,18 +462,39 @@ static inline char is_control_character(int ch) {
   return ((ch > 0) && (ch <= 0x1F));
 }
 
-static void print_token_stream(TokenStream* ts) {
-  if (!ts || !ts->tokenArray) {
-    return;
+/**
+ * Reads the **open** file handle `f` and
+ * copies the entirety of it to a heap allocated byte array
+ * 
+ * @returns valid pointer on success, `NULL` on failure
+ */
+static char* read_file(FILE* f) {
+  // 1. Jump to the end of the file
+  fseek(f, 0, SEEK_END);
+
+  // 2. Get the current byte offset i.e the file size
+  long length = ftell(f);
+
+  // 3. Jump back to the beginning
+  rewind(f);
+
+  // 4. Allocate for whole file +1 for a null terminator
+  char* buffer = (char*)malloc(length + 1);
+  if (!buffer) {
+    fprintf(stderr, "read_file: failed to malloc memory for file\n");
+    return NULL;
   }
 
-  printf("Stream has %ld tokens.\n", ts->size);
-  printf("---- START TOKEN STREAM ----\n");
-
-  for (size_t idx = 0; idx < ts->size; idx++) {
-    TOKEN tk = ts->tokenArray[idx];
-    printf("%c (char), %02x (hex), %d (dec)\n", tk, tk, tk);
+  // 5. Read the whole file
+  size_t read_size = fread(buffer, 1, length, f);
+  if (read_size != (size_t)length) {
+    fprintf(stderr, "read_file: could not read entire file\n");
+    free(buffer);
+    return NULL;
   }
 
-  printf("---- END TOKEN STREAM ----\n");
+  // 6. Null-terminate
+  buffer[length] = '\0';
+
+  return buffer;
 }
