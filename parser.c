@@ -5,11 +5,11 @@
 
 #define MAX_DEPTH 19  // acceptable number of nested arrays and objects
 
-static inline char is_simple_value(TOKEN tk);
-static char eat(TOKEN expectedToken, TOKEN* ta);
-static char parse_value(TOKEN* tokenArray);
-static char parse_object(TOKEN* ta);
-static char parse_array(TOKEN* ta);
+static inline int8_t is_simple_value(TOKEN tk);
+static int8_t eat(TOKEN expectedToken, TOKEN* ta);
+static int8_t parse_value(TOKEN* tokenArray);
+static int8_t parse_object(TOKEN* ta);
+static int8_t parse_array(TOKEN* ta);
 static void free_token_stream(TokenStream* ts);
 
 static size_t cursor = 0;  // tracks position in the `TOKEN*` array
@@ -67,7 +67,7 @@ on_cleanup:
  *
  * string || number || 'true || 'false' || 'null'
  */
-static inline char is_simple_value(TOKEN tk) {
+static inline int8_t is_simple_value(TOKEN tk) {
   return (tk == STRING) || (tk == NUMBER) || (tk == LITERAL_TRUE) || (tk == LITERAL_FALSE) || (tk == LITERAL_NULL);
 }
 
@@ -81,7 +81,7 @@ static inline char is_simple_value(TOKEN tk) {
  * Returns 0 on success, incrementing `cursor`
  * Returns -1 on failure
  */
-static char eat(TOKEN expectedToken, TOKEN* ta) {
+static int8_t eat(TOKEN expectedToken, TOKEN* ta) {
   if (ta[cursor] == expectedToken) {
     cursor++;
     return 0;
@@ -105,13 +105,13 @@ static char eat(TOKEN expectedToken, TOKEN* ta) {
  * At end of execution, decrements `depth` and
  * @returns 0 on success and -1 on failure
  */
-static char parse_value(TOKEN* tokenArray) {
+static int8_t parse_value(TOKEN* tokenArray) {
   if (depth > MAX_DEPTH) {
     fprintf(stderr, "Nesting in JSON file exceeds safe limit (%d). Aborting!\n", MAX_DEPTH);
     return -1;
   }
 
-  char res = 0;
+  int8_t res = 0;
   TOKEN currentToken = tokenArray[cursor];
 
   if (is_simple_value(currentToken)) {
@@ -144,7 +144,7 @@ static char parse_value(TOKEN* tokenArray) {
  *
  * @returns 0 on success and -1 on failure
  */
-static char parse_object(TOKEN* ta) {
+static int8_t parse_object(TOKEN* ta) {
   if (depth > MAX_DEPTH) {
     fprintf(stderr, "Nesting in JSON file exceeds safe limit (%d). Aborting!\n", MAX_DEPTH);
     return -1;
@@ -199,7 +199,7 @@ static char parse_object(TOKEN* ta) {
  *
  * @returns 0 on success and -1 on failure
  */
-static char parse_array(TOKEN* ta) {
+static int8_t parse_array(TOKEN* ta) {
   if (depth > MAX_DEPTH) {
     fprintf(stderr, "Nesting in JSON file exceeds safe limit (%d). Aborting!\n", MAX_DEPTH);
     return -1;

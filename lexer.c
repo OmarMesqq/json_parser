@@ -9,14 +9,14 @@
 #define INITIAL_MAX_TOKENS 500  // acceptable number of tokens to initially read from the text file
 
 static char* read_file(FILE* f);
-static inline char is_whitespace(int ch);
-static inline char is_control_character(int ch);
+static inline int8_t is_whitespace(int ch);
+static inline int8_t is_control_character(int ch);
 static int8_t lexify_primitive_value(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
-static char lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
-static char lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
-static char lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
-static char lexify_false(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
-static char lexify_null(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static int8_t lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static int8_t lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static int8_t lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static int8_t lexify_false(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static int8_t lexify_null(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
 
 /**
  * Converts individual characters of `file`
@@ -175,7 +175,7 @@ static int8_t lexify_primitive_value(int currentChar, const char* buf, size_t* b
  *
  * @returns 1 on success, 0 on error
  */
-static char lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+static int8_t lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
   int ch = buf[*buf_idx + 1];
 
   // 1. Check for trailing minus at end of file
@@ -308,7 +308,7 @@ static char lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOK
  *
  * @returns 1 on success, 0 on error
  */
-static char lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+static int8_t lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
   int ch = buf[*buf_idx];
   char foundStrEnd = 0;
 
@@ -396,7 +396,7 @@ static char lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, s
  * Attempts to lexify the `true` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+static int8_t lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
   if (buf[*buf_idx] == 't' &&
       buf[*buf_idx + 1] == 'r' &&
       buf[*buf_idx + 2] == 'u' &&
@@ -413,7 +413,7 @@ static char lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, siz
  * Attempts to lexify the `false` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_false(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+static int8_t lexify_false(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
   if (buf[*buf_idx] == 'f' &&
       buf[*buf_idx + 1] == 'a' &&
       buf[*buf_idx + 2] == 'l' &&
@@ -431,7 +431,7 @@ static char lexify_false(const char* buf, size_t* buf_idx, TOKEN* tokenArray, si
  * Attempts to lexify the `null` JSON literal.
  * @returns 1 on success, 0 on error
  */
-static char lexify_null(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+static int8_t lexify_null(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
   if (buf[*buf_idx] == 'n' &&
       buf[*buf_idx + 1] == 'u' &&
       buf[*buf_idx + 2] == 'l' &&
@@ -451,14 +451,14 @@ static char lexify_null(const char* buf, size_t* buf_idx, TOKEN* tokenArray, siz
  * - '\n' line feed/newline
  * - '\r' carriage return
  */
-static inline char is_whitespace(int ch) {
+static inline int8_t is_whitespace(int ch) {
   return (ch == 0x20) || (ch == 0x09) || (ch == 0x0A) || (ch == 0x0D);
 }
 
 /**
  * Returns true (1) if `ch` is a control character: `0x00` through `0x1F`
  */
-static inline char is_control_character(int ch) {
+static inline int8_t is_control_character(int ch) {
   return ((ch > 0) && (ch <= 0x1F));
 }
 
