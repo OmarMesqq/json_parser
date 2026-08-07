@@ -28,7 +28,7 @@ int Parse(TokenStream* ts) {
     return -1;
   }
 
-  char res = 0;
+  int8_t res = 0;
   TOKEN* ta = ts->tokenArray;
 
   /**
@@ -150,9 +150,11 @@ static char parse_object(TOKEN* ta) {
     return -1;
   }
 
-  char res = 0;
+  int8_t res = 0;
   res = eat(BEGIN_OBJECT, ta);
-  if (res == -1) return -1;
+  if (res == -1) {
+    return -1;
+  }
   TOKEN currentToken = ta[cursor];
 
   while (currentToken != END_OBJECT) {
@@ -203,7 +205,7 @@ static char parse_array(TOKEN* ta) {
     return -1;
   }
 
-  char res = 0;
+  int8_t res = 0;
   res = eat(BEGIN_ARRAY, ta);
   if (res == -1) return -1;
   TOKEN currentToken = ta[cursor];

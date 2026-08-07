@@ -11,7 +11,7 @@
 static char* read_file(FILE* f);
 static inline char is_whitespace(int ch);
 static inline char is_control_character(int ch);
-static char lexify_primitive_value(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
+static int8_t lexify_primitive_value(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
 static char lexify_string(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
 static char lexify_number(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
 static char lexify_true(const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx);
@@ -137,8 +137,8 @@ on_error:
  *
  * Returns 0 on error, 1 on success, and -1 if the char didn't correspond to a primitive
  */
-static char lexify_primitive_value(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
-  char status = -1;
+static int8_t lexify_primitive_value(int currentChar, const char* buf, size_t* buf_idx, TOKEN* tokenArray, size_t* tok_idx) {
+  int8_t status = -1;
 
   if (isdigit(currentChar) || currentChar == '-') {
     status = lexify_number(currentChar, buf, buf_idx, tokenArray, tok_idx);
