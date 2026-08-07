@@ -2,20 +2,33 @@ VALGRIND_LOG := /tmp/json_parser_valgrind.log
 CACHEGRIND_LOG := /tmp/cachegrind.out
 OUTPUT := /tmp/json_parser
 TEST_OUTPUT := /tmp/json_parser_tests
+CFLAGS_COMMON = -Wall -Wextra \
+								-Winline -Wshadow \
+								-Wconversion -Wsign-conversion -Wdouble-promotion \
+
+SOURCES = main.c lexer.c parser.c
+TEST_SOURCES = runner.c lexer.c parser.c
 
 # JSON parser tasks
+release: CFLAGS = $(CFLAGS_COMMON) -O3
 release:
-	gcc -O3 -Wall -Wextra -Winline main.c lexer.c parser.c -o $(OUTPUT)
+	gcc $(CFLAGS) $(SOURCES) -o $(OUTPUT)
 
+debug: CFLAGS = $(CFLAGS_COMMON) -g -O0 \
+								-fsanitize=address,undefined -fsanitize-trap=undefined \
+								-fno-omit-frame-pointer -fstrict-overflow \
+								-funwind-tables -fasynchronous-unwind-tables
 debug:
-	gcc -g -O0 -Wall -Wextra -Winline -fsanitize=address main.c lexer.c parser.c -o $(OUTPUT)
+	gcc $(CFLAGS) $(SOURCES) -o $(OUTPUT)
 
+profile: CFLAGS = $(CFLAGS_COMMON) -g -O3
 profile:
-	gcc -g -O3 -Wall -Wextra -Winline main.c lexer.c parser.c -o $(OUTPUT)
+	gcc $(CFLAGS) $(SOURCES) -o $(OUTPUT)
 
 # Test runner
+test: CFLAGS = $(CFLAGS_COMMON) -g
 test:
-	gcc -g -Wall -Wextra -Winline runner.c lexer.c parser.c -o $(TEST_OUTPUT)
+	gcc $(CFLAGS) $(TEST_SOURCES) -o $(TEST_OUTPUT)
 
 # Resource leaks and profiling
 memleak-check: test
